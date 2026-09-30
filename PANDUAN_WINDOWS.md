@@ -214,6 +214,19 @@ Schema::create('bagi_hasils', function (Blueprint $table) {
 
 ### 2.3 Konfigurasi Seluruh Eloquent Models
 
+> **💡 Petunjuk Pembuatan File Model di Windows:**
+> 1. **File `User.php`**: File ini **sudah otomatis tersedia** bawaan dari instalasi awal Laravel di `app/Models/User.php`. Anda **tidak perlu** membuat file baru, cukup buka dan sesuaikan kodenya.
+> 2. **Model Lainnya (`Motor`, `TarifRental`, `Penyewaan`, `Transaksi`, `BagiHasil`)**: Jangan buat file secara manual (klik kanan -> New File). Jalankan perintah **Artisan** berikut di terminal/CMD Windows agar kerangka class-nya dibuatkan otomatis oleh Laravel:
+>    ```bash
+>    php artisan make:model Motor
+>    php artisan make:model TarifRental
+>    php artisan make:model Penyewaan
+>    php artisan make:model Transaksi
+>    php artisan make:model BagiHasil
+>    ```
+>    *(Tips: Jika Anda membuat proyek dari awal, Anda juga bisa membuat Model sekaligus Migration-nya sekaligus dengan opsi `-m`, contoh: `php artisan make:model Motor -m`)*.
+> 3. Setelah file Model berhasil dibuat di folder `app/Models/`, buka masing-masing file dan isi kode konfigurasi `$fillable` serta relasinya sesuai panduan di bawah ini:
+
 #### File: `app/Models/User.php`
 ```php
 <?php
