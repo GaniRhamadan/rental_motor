@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Motor;
 use App\Models\BagiHasil;
+use App\Models\Motor;
+use Illuminate\Http\Request;
 
 class OwnerController extends Controller
 {
     public function storeMotor(Request $request)
     {
-        auth('api')->user();
         $validated = $request->validate([
-            'merek'     => 'required|string|max:100',
-            'tipe_cc'   => 'required|in:100,125,150',
-            'no_plat'   => 'required|string|unique:motors,no_plat',
-            'foto'      => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'merek' => 'required|string|max:100',
+            'tipe_cc' => 'required|in:100,125,150',
+            'no_plat' => 'required|string|unique:motors,no_plat',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'documen_kepemilikan' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:2048',
         ]);
         $fotoPath = $request->hasFile('foto')
@@ -25,29 +24,33 @@ class OwnerController extends Controller
             ? $request->file('documen_kepemilikan')->store('documents', 'public')
             : null;
         $motor = Motor::create([
-            'pemilik_id'    => auth('api')->id(),
-            'merek'         => $validated['merek'],
-            'tipe_cc'       => $validated['tipe_cc'],
-            'no_plat'       => $validated['no_plat'],
-            'status'        => 'menunggu_verifikasi',
-            'foto'          => $fotoPath,
+            'pemilik_id' => auth('api')->id(),
+            'merek' => $validated['merek'],
+            'tipe_cc' => $validated['tipe_cc'],
+            'no_plat' => $validated['no_plat'],
+            'status' => 'menunggu_verifikasi',
+            'foto' => $fotoPath,
             'documen_kepemilikan' => $docPath,
         ]);
+
         return response()->json([
-            'message' => 'Motor berhasil didaftarkan dan menungu verifikasi admin',
-            'motor'     => $motor,
+            'message' => 'Motor berhasil didaftarkan dan menunggu verifikasi admin',
+            'motor' => $motor,
         ], 201);
     }
+
     public function myMotors()
     {
         $motors = Motor::with('tarif')
             ->where('pemilik_id', auth('api')->id())
             ->get();
+
         return response()->json([
             'message' => 'Daftar motor Anda',
             'motors' => $motors,
         ]);
     }
+
     public function revenueReport()
     {
         $ownerId = auth('api')->id();
@@ -58,10 +61,11 @@ class OwnerController extends Controller
             })
             ->get();
         $totalPendapatan = $laporan->sum('bagi_hasil_pemilik');
+
         return response()->json([
-            'message'   => 'Laporan pendapatan bagi hasil',
+            'message' => 'Laporan pendapatan bagi hasil pemilik',
             'total_pendapatan' => $totalPendapatan,
-            'rincian'     => $laporan,
+            'rincian' => $laporan,
         ]);
     }
 }

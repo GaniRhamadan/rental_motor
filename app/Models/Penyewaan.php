@@ -15,15 +15,22 @@ class Penyewaan extends Model
         'harga',
         'status',
     ];
-    public function penyewa() {
+
+    public function penyewa()
+    {
         return $this->belongsTo(User::class, 'penyewa_id');
     }
-    public function motor() {
+
+    public function motor()
+    {
         return $this->belongsTo(Motor::class, 'motor_id');
     }
-    public function transaksi() {
+
+    public function transaksi()
+    {
         return $this->hasOne(Transaksi::class, 'pemesanan_id');
     }
+
     public function bagiHasil()
     {
         return $this->hasOne(BagiHasil::class, 'pemesanan_id');

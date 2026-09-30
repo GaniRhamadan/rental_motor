@@ -12,11 +12,30 @@
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="#">Rental Motor</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="/admin/dashboard">Admin</a>
-            <a class="nav-link" href="/owner/dashboard">Pemilik</a>
-            <a class="nav-link" href="/rent/dashboard">Penyewa</a>
+        <a class="navbar-brand fw-bold" href="/">Rental Motor</a>
+        <div class="navbar-nav ms-auto align-items-center">
+            @auth('web')
+                <span class="navbar-text me-3 text-white">
+                    Halo, <strong>{{ auth('web')->user()->name }}</strong> ({{ ucfirst(auth('web')->user()->role) }})
+                </span>
+
+                @if(auth('web')->user()->role == 'admin')
+                    <a class="nav-link" href="/admin/dashboard">Admin Panel</a>
+                @elseif(auth('web')->user()->role == 'pemilik')
+                    <a class="nav-link" href="/owner/dashboard">Motor Saya</a>
+                @else
+                    <a class="nav-link" href="/rent/dashboard">Katalog & Riwayat Sewa</a>
+                @endif
+
+                <form action="/logout" method="POST" class="d-inline ms-2">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-light btn-sm">Keluar</button>
+                </form>
+            @else
+                <a class="nav-link me-2" href="/rent/dashboard">Katalog Sewa</a>
+                <a class="btn btn-outline-light btn-sm me-2" href="/login">Masuk</a>
+                <a class="btn btn-primary btn-sm" href="/register">Daftar</a>
+            @endauth
         </div>
     </div>
 </nav>

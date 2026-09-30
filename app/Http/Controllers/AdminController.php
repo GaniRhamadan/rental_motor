@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Motor;
-use App\Models\TarifRental;
-use App\Models\Penyewaan;
 use App\Models\BagiHasil;
+use App\Models\Motor;
+use App\Models\Penyewaan;
+use App\Models\TarifRental;
+use Illuminate\Http\Request;
 
 class AdminController extends Controller
 {
@@ -27,11 +27,13 @@ class AdminController extends Controller
                 'tarif_bulanan' => $validated['tarif_bulanan'],
             ]
         );
+
         return response()->json([
-            'message' => 'Motor berhasil diverifikasi dan tarif telah di tentukan',
-            'motor' => $motor->load('tarif')
+            'message' => 'Motor berhasil diverifikasi dan tarif telah ditentukan',
+            'motor' => $motor->load('tarif'),
         ]);
     }
+
     public function confirmBooking(Request $request, $id)
     {
         $penyewaan = Penyewaan::with('transaksi')->findOrFail($id);
@@ -47,15 +49,17 @@ class AdminController extends Controller
             [
                 'bagi_hasil_pemilik' => $porsiPemilik,
                 'bagi_hasil_admin' => $porsiAdmin,
-                'tanggal'   => now()->toDateString(),
+                'tanggal' => now()->toDateString(),
             ]
         );
+
         return response()->json([
             'message' => 'penyewaan berhasil dikonfirmasi, status motor kini disewa dan bagi hasil telah tercatat',
             'penyewaan' => $penyewaan->fresh(['motor']),
             'bagi_hasil' => $bagiHasil,
         ]);
     }
+
     public function returnBooking($id)
     {
         $penyewaan = Penyewaan::findOrFail($id);
@@ -63,24 +67,26 @@ class AdminController extends Controller
         if ($penyewaan->bagiHasil) {
             $penyewaan->bagiHasil->update(['settled_at' => now()]);
         }
+
         return response()->json([
-            'message' => 'pengembalian motor berhasil dikonfirmasi. status kini kembali tersedia',
-            'penyewa' => $penyewaan->fresh(['motor']),
+            'message' => 'pengembalian motor berhasil dikonfirmasi. status motor kini kembali tersedia',
+            'penyewaan' => $penyewaan->fresh(['motor']),
         ]);
     }
+
     public function revenueReport()
     {
         $laporan = BagiHasil::with(['penyewaan.motor', 'penyewaan.penyewa'])->get();
-        $totalAdmi       = $laporan->sum('bagi_hasil_admin');
-        $totalPemilik    = $laporan->sum('bagi_hasil_pemilik');
-        $totalOmset      = $totalAdmi + $totalPemilik;
+        $totalAdmin = $laporan->sum('bagi_hasil_admin');
+        $totalPemilik = $laporan->sum('bagi_hasil_pemilik');
+        $totalOmset = $totalAdmin + $totalPemilik;
 
         return response()->json([
-            'message'                  => 'laporan pendapatan admin dan bagi hasil',
-            'total_omset'              => $totalOmset,
-            'total_bagi_hasil_admin' => $totalAdmi,
+            'message' => 'laporan pendapatan admin dan bagi hasil',
+            'total_omset' => $totalOmset,
+            'total_bagi_hasil_admin' => $totalAdmin,
             'total_bagi_hasil_pemilik' => $totalPemilik,
-            'rincian'                  => $laporan,
+            'rincian' => $laporan,
         ]);
     }
 }

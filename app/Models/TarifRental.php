@@ -12,6 +12,7 @@ class TarifRental extends Model
         'tarif_mingguan',
         'tarif_bulanan',
     ];
+
     public function motor()
     {
         return $this->belongsTo(Motor::class);

@@ -42,11 +42,14 @@ class User extends Authenticatable implements JWTSubject
             'role' => $this->role,
         ];
     }
-    public function motors() {
+
+    public function motors()
+    {
         return $this->hasMany(Motor::class, 'pemilik_id');
     }
+
     public function penyewaans()
     {
-        $this->hasMany(Penyewaan::class, 'penyewaan_id');
+        return $this->hasMany(Penyewaan::class, 'penyewa_id');
     }
 }

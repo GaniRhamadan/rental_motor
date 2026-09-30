@@ -10,8 +10,9 @@ class BagiHasil extends Model
         'pemesanan_id',
         'bagi_hasil_pemilik',
         'bagi_hasil_admin',
-        'settled_at', 'tanggal'
+        'settled_at', 'tanggal',
     ];
+
     public function penyewaan()
     {
         return $this->belongsTo(Penyewaan::class, 'pemesanan_id');

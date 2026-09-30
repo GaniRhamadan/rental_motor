@@ -13,7 +13,9 @@ class Transaksi extends Model
         'status',
         'tanggal',
     ];
-    public function penyewaan() {
+
+    public function penyewaan()
+    {
         return $this->belongsTo(Penyewaan::class, 'pemesanan_id');
     }
 }

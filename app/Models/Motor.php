@@ -13,17 +13,21 @@ class Motor extends Model
         'no_plat',
         'status',
         'foto',
-        'documen_kepemilikan'
+        'documen_kepemilikan',
     ];
+
     public function pemilik()
     {
         return $this->belongsTo(User::class, 'pemilik_id');
     }
+
     public function tarif()
     {
         return $this->hasOne(TarifRental::class);
     }
-    public function penyewaans() {
+
+    public function penyewaans()
+    {
         return $this->hasMany(Penyewaan::class, 'motor_id');
     }
 }

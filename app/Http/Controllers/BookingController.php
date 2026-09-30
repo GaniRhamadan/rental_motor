@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Motor;
 use App\Models\Penyewaan;
 use App\Models\Transaksi;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class BookingController extends Controller
 {
@@ -15,11 +15,13 @@ class BookingController extends Controller
         $motors = Motor::with('tarif')
             ->where('status', 'tersedia')
             ->get();
+
         return response()->json([
             'message' => 'Daftar motor tersedia',
-            'motors' => $motors
+            'motors' => $motors,
         ]);
     }
+
     public function createBooking(Request $request)
     {
         $validated = $request->validate([
@@ -29,7 +31,7 @@ class BookingController extends Controller
         ]);
         $motor = Motor::with('tarif')->findOrFail($validated['motor_id']);
 
-        if ($motor->status !== 'tersedia' || !$motor->tarif) {
+        if ($motor->status !== 'tersedia' || ! $motor->tarif) {
             return response()->json(['message' => 'Motor tidak tersedia untuk disewa'], 400);
         }
         $mulai = Carbon::parse($validated['tanggal_mulai']);
@@ -45,23 +47,25 @@ class BookingController extends Controller
             $harga = $motor->tarif->tarif_bulanan;
         }
         $penyewaan = Penyewaan::create([
-            'penyewa_id'      => auth('api')->id(),
-            'motor_id'        => $motor->id,
-            'tanggal_mulai'   => $mulai->toDateString(),
+            'penyewa_id' => auth('api')->id(),
+            'motor_id' => $motor->id,
+            'tanggal_mulai' => $mulai->toDateString(),
             'tanggal_selesai' => $selesai->toDateString(),
-            'tipe_durasi'     => $validated['tipe_durasi'],
-            'harga'           => $harga,
-            'status'          => 'menunggu_pembayaran',
+            'tipe_durasi' => $validated['tipe_durasi'],
+            'harga' => $harga,
+            'status' => 'menunggu_pembayaran',
         ]);
+
         return response()->json([
             'message' => 'Pesanan sewa berhasil dibuat, silahkan lakukan pembayaran',
             'penyewaan' => $penyewaan->load('motor'),
         ], 201);
     }
+
     public function payBooking(Request $request)
     {
         $validated = $request->validate([
-            'pemesanan_id'  => 'required|exists:penyewaans,id',
+            'pemesanan_id' => 'required|exists:penyewaans,id',
             'metode_pembayaran' => 'required|string',
         ]);
         $penyewaan = Penyewaan::where('id', $validated['pemesanan_id'])
@@ -71,26 +75,29 @@ class BookingController extends Controller
             return response()->json(['message' => 'Pesanan tidak dalam status menunggu pembayaran'], 400);
         }
         $transaksi = Transaksi::create([
-            'pemesanan_id'      => $penyewaan->id,
-            'jumlah'            => $penyewaan->harga,
+            'pemesanan_id' => $penyewaan->id,
+            'jumlah' => $penyewaan->harga,
             'metode_pembayaran' => $validated['metode_pembayaran'],
-            'status'            => 'berhasil',
-            'tanggal'           => now(),
+            'status' => 'berhasil',
+            'tanggal' => now(),
         ]);
+
         return response()->json([
-            'message'   => 'pembayaran berhasil dicatat, menunggu konfirmasi admin',
+            'message' => 'pembayaran berhasil dicatat, menunggu konfirmasi admin',
             'transaksi' => $transaksi,
         ], 201);
     }
+
     public function myBookings()
     {
         $booking = Penyewaan::with(['motor', 'transaksi'])
             ->where('penyewa_id', auth('api')->id())
             ->latest()
             ->get();
+
         return response()->json([
-            'message'   => 'riwayat penyewaan anda',
-            'bookings'  => $booking,
+            'message' => 'riwayat penyewaan anda',
+            'bookings' => $booking,
         ]);
     }
 }

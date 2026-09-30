@@ -3,6 +3,22 @@
 @section('title', 'Katalog Rental Motor')
 
 @section('content')
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <h4 class="fw-bold mb-3">Pilihan Motor Tersedia untuk Disewa</h4>
     <div class="row mb-5">
         @forelse($availableMotors as $motor)
@@ -95,12 +111,12 @@
                         <td>{{ $b->tanggal_mulai }} s/d {{ $b->tanggal_selesai }} ({{ $b->tipe_durasi }})</td>
                         <td><strong>Rp {{ number_format($b->harga, 0, ',', '.') }}</strong></td>
                         <td>
-                        <span class="badge {{ $b->status == 'dikonfirmasi' ? 'bg-success' : 'bg-warning text-dark' }}">
+                        <span class="badge {{ $b->status == 'dikonfirmasi' ? 'bg-success' : ($b->status == 'selesai' ? 'bg-primary' : 'bg-warning text-dark') }}">
                             {{ $b->status }}
                         </span>
                         </td>
                         <td>
-                        <span class="badge {{ ($b->transaksi && $b->transaksi->status == 'berhasil') ? 'bg-primary' : 'bg-danger' }}">
+                        <span class="badge {{ ($b->transaksi && $b->transaksi->status == 'berhasil') ? 'bg-success' : 'bg-danger' }}">
                             {{ $b->transaksi ? $b->transaksi->status : 'belum bayar' }}
                         </span>
                         </td>

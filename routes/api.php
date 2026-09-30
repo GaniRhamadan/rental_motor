@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\OwnerController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\OwnerController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -31,4 +31,3 @@ Route::middleware(['role:penyewa'])->group(function () {
     Route::post('/payments', [BookingController::class, 'payBooking']);
     Route::get('/bookings/history', [BookingController::class, 'myBookings']);
 });
-
