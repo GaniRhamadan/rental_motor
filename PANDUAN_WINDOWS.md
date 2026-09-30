@@ -1,17 +1,27 @@
-# PANDUAN LENGKAP PENGEMBANGAN SISTEM RENTAL MOTOR (LARAVEL 13)
+# PANDUAN LENGKAP PENGEMBANGAN SISTEM RENTAL MOTOR (LARAVEL + MOONSHINE)
 > **Sertifikasi BNSP / Uji Kompetensi Pemrograman Web & Mobile (TPD Junior Coder)**  
-> Panduan instalasi dan implementasi source code lengkap 100% dari nol hingga selesai untuk sistem operasi **Windows** (menggunakan XAMPP/Laragon atau PHP CLI + MySQL).
+> Panduan instalasi dan implementasi source code lengkap 100% dari nol hingga selesai untuk sistem operasi **Windows** (menggunakan XAMPP/Laragon atau PHP CLI + MySQL), terintegrasi dengan **MoonShine Library** untuk Dashboard & Admin Panel modern, serta **Fitur Upload & Manajemen Foto Unit Motor**.
 
 ---
 
 ## DAFTAR ISI
 1. [Prasyarat & Persiapan Lingkungan di Windows](#1-prasyarat--persiapan-lingkungan-di-windows)
 2. [Fase 1: Inisialisasi Proyek & Konfigurasi Auth](#fase-1-inisialisasi-proyek--konfigurasi-auth)
-3. [Fase 2: Perancangan Skema Database (Migrations & Models)](#fase-2-perancangan-skema-database-migrations--models)
+3. [Fase 2: Perancangan Skema Database (Migrations & Models + Kolom Foto)](#fase-2-perancangan-skema-database-migrations--models--kolom-foto)
 4. [Fase 3: Database Trigger MySQL (Otomatisasi Status Unit)](#fase-3-database-trigger-mysql-otomatisasi-status-unit)
 5. [Fase 4: JWT Auth & Custom Role Middleware](#fase-4-jwt-auth--custom-role-middleware)
-6. [Fase 5 & 6: Backend REST API Controllers (API Modul)](#fase-5--6-backend-rest-api-controllers-api-modul)
-7. [Fase 7: Web Controller & Antarmuka UI (Blade + Chart.js)](#fase-7-web-controller--antarmuka-ui-blade--chartjs)
+6. [Fase 5 & 6: Backend REST API Controllers (API Modul & Mobile)](#fase-5--6-backend-rest-api-controllers-api-modul--mobile)
+7. [Fase 7: Implementasi Admin Panel & CRUD Modern dengan MoonShine](#fase-7-implementasi-admin-panel--crud-modern-dengan-moonshine)
+   - [7.1 Instalasi & Inisialisasi MoonShine di Windows](#71-instalasi--inisialisasi-moonshine-di-windows)
+   - [7.2 Pembuatan Akun Super Admin MoonShine](#72-pembuatan-akun-super-admin-moonshine)
+   - [7.3 Resource MotorResource (CRUD Armada & Fitur Upload Foto Motor)](#73-resource-motorresource-crud-armada--fitur-upload-foto-motor)
+   - [7.4 Resource TarifRentalResource (Penetapan Tarif Harian, Mingguan, Bulanan)](#74-resource-tarifrentalresource-penetapan-tarif-harian-mingguan-bulanan)
+   - [7.5 Resource PenyewaanResource (Manajemen Transaksi Sewa)](#75-resource-penyewaanresource-manajemen-transaksi-sewa)
+   - [7.6 Resource TransaksiResource (Pembayaran & Verifikasi)](#76-resource-transaksiresource-pembayaran--verifikasi)
+   - [7.7 Resource BagiHasilResource (Laporan Keuangan & Export Excel/CSV)](#77-resource-bagihasilresource-laporan-keuangan--export-excelcsv)
+   - [7.8 Resource UserResource (Manajemen Akun Pengguna)](#78-resource-userresource-manajemen-akun-pengguna)
+   - [7.9 Konfigurasi Menu Navigasi MoonShine](#79-konfigurasi-menu-navigasi-moonshine)
+   - [7.10 Landing Page Publik Katalog Motor](#710-landing-page-publik-katalog-motor)
 8. [Fase 8: Konfigurasi Seluruh Routing (API & Web)](#fase-8-konfigurasi-seluruh-routing-api--web)
 9. [Cara Menjalankan & Menguji di Windows](#9-cara-menjalankan--menguji-di-windows)
 10. [Tabel Kredensial Akun Pengujian](#10-tabel-kredensial-akun-pengujian)
@@ -22,12 +32,14 @@
 ## 1. PRASYARAT & PERSIAPAN LINGKUNGAN DI WINDOWS
 
 Pastikan aplikasi berikut sudah terinstal di Windows:
-1. **PHP >= 8.2** (Rekomendasi PHP 8.3 / 8.4). Pastikan ekstensi berikut aktif di `php.ini` (hilangkan tanda `;` di depannya):
+1. **PHP >= 8.2** (Rekomendasi PHP 8.3 / 8.4).  
+   Buka file konfigurasi `php.ini` (misal di `C:\xampp\php\php.ini` atau menu Laragon -> PHP -> `php.ini`), pastikan ekstensi berikut aktif (hilangkan tanda titik koma `;` di depannya):
    - `extension=pdo_mysql`
    - `extension=mbstring`
    - `extension=openssl`
    - `extension=curl`
-   - `extension=fileinfo`
+   - `extension=fileinfo` *(Krusial untuk validasi upload foto)*
+   - `extension=gd` *(Krusial untuk manipulasi & preview gambar/thumbnail)*
 2. **Composer** (Download installer dari [getcomposer.org](https://getcomposer.org)).
 3. **MySQL / MariaDB** (Melalui XAMPP, Laragon, atau MySQL Server standalone).
 
@@ -43,7 +55,7 @@ Pastikan aplikasi berikut sudah terinstal di Windows:
 ## FASE 1: INISIALISASI PROYEK & KONFIGURASI AUTH
 
 ### 1.1 Buat Proyek Laravel Baru
-Buka terminal (cmd / PowerShell) di folder kerja Windows kamu:
+Buka terminal (CMD / PowerShell) di folder kerja Windows kamu:
 ```bash
 composer create-project laravel/laravel rental_motor
 cd rental_motor
@@ -52,15 +64,17 @@ cd rental_motor
 ### 1.2 Konfigurasi Database di `.env`
 Buka file `.env` di teks editor, sesuaikan konfigurasi database:
 ```env
-DB_CONNECTION=mariadb
+DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=rental_motor
 DB_USERNAME=root
 DB_PASSWORD=
+
+APP_URL=http://127.0.0.1:8000
 ```
 
-### 1.3 Install Paket JWT Auth
+### 1.3 Install Paket JWT Auth (Untuk REST API Mobile)
 ```bash
 composer require tymon/jwt-auth
 php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
@@ -71,7 +85,7 @@ php artisan jwt:secret
 Buka file `config/auth.php`, ubah bagian `defaults` dan `guards`:
 ```php
 'defaults' => [
-    'guard' => env('AUTH_GUARD', 'api'),
+    'guard' => env('AUTH_GUARD', 'web'),
     'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
 ],
 
@@ -89,11 +103,11 @@ Buka file `config/auth.php`, ubah bagian `defaults` dan `guards`:
 
 ---
 
-## FASE 2: PERANCANGAN SKEMA DATABASE (MIGRATIONS & MODELS)
+## FASE 2: PERANCANGAN SKEMA DATABASE (MIGRATIONS & MODELS + KOLOM FOTO)
 
 Sistem rental ini memiliki 6 entitas yang saling berelasi:
 1. `users` (Admin, Pemilik, Penyewa)
-2. `motors` (Unit kendaraan)
+2. `motors` (Unit kendaraan + **Foto Unit Motor**)
 3. `tarif_rentals` (Tarif harian, mingguan, bulanan)
 4. `penyewaans` (Transaksi pemesanan sewa)
 5. `transaksis` (Catatan pembayaran)
@@ -116,7 +130,7 @@ Schema::create('users', function (Blueprint $table) {
 ```
 
 ### 2.2 Buat Migration Entitas Lainnya
-Jalankan perintah ini di terminal:
+Jalankan perintah ini di terminal Windows:
 ```bash
 php artisan make:migration create_motors_table
 php artisan make:migration create_tarif_rentals_table
@@ -128,6 +142,7 @@ php artisan make:migration create_bagi_hasils_table
 Isi masing-masing file migration:
 
 #### A. File `database/migrations/xxxx_xx_xx_create_motors_table.php`:
+> **Fitur Tambahan:** Kolom `foto` bertipe string nullable untuk menyimpan path foto motor di storage.
 ```php
 Schema::create('motors', function (Blueprint $table) {
     $table->id();
@@ -136,8 +151,8 @@ Schema::create('motors', function (Blueprint $table) {
     $table->enum('tipe_cc', ['100', '125', '150']);
     $table->string('no_plat')->unique();
     $table->enum('status', ['menunggu_verifikasi', 'tersedia', 'disewa'])->default('menunggu_verifikasi');
-    $table->string('foto')->nullable();
-    $table->string('documen_kepemilikan')->nullable();
+    $table->string('foto')->nullable(); // Kolom foto unit motor
+    $table->string('documen_kepemilikan')->nullable(); // STNK / BPKB
     $table->timestamps();
 });
 ```
@@ -257,6 +272,12 @@ class Motor extends Model
     protected $fillable = [
         'pemilik_id', 'merek', 'tipe_cc', 'no_plat', 'status', 'foto', 'documen_kepemilikan'
     ];
+
+    // Accessor otomatis untuk URL publik foto motor
+    public function getFotoUrlAttribute(): ?string
+    {
+        return $this->foto ? asset('storage/' . $this->foto) : null;
+    }
 
     public function pemilik()
     {
@@ -378,16 +399,14 @@ class BagiHasil extends Model
 
 ## FASE 3: DATABASE TRIGGER MYSQL (OTOMATISASI STATUS UNIT)
 
-Database trigger ini bertugas otomatis mengubah status unit motor di MySQL:
-- Pesanan `'dikonfirmasi'` -> motor status `'disewa'`.
-- Pesanan `'selesai'` -> motor status `'tersedia'`.
+Database trigger ini bertugas menyinkronkan status unit motor secara otomatis saat transaksi penyewaan disetujui atau diselesaikan.
 
-Jalankan perintah:
+Buat file migration khusus trigger:
 ```bash
-php artisan make:migration create_motor_status_trigger
+php artisan make:migration create_sync_motor_status_trigger
 ```
 
-Isi file migration tersebut:
+Isi file `database/migrations/xxxx_xx_xx_create_sync_motor_status_trigger.php`:
 ```php
 <?php
 
@@ -398,41 +417,47 @@ return new class extends Migration
 {
     public function up(): void
     {
+        DB::unprepared("DROP TRIGGER IF EXISTS after_penyewaan_update_sync_motor;");
+
         DB::unprepared("
-            CREATE TRIGGER trg_update_motor_status_after_booking_update
+            CREATE TRIGGER after_penyewaan_update_sync_motor
             AFTER UPDATE ON penyewaans
             FOR EACH ROW
             BEGIN
-                IF NEW.status = 'dikonfirmasi' THEN
-                    UPDATE motors SET status = 'disewa' WHERE id = NEW.motor_id;
-                ELSEIF NEW.status = 'selesai' THEN
-                    UPDATE motors SET status = 'tersedia' WHERE id = NEW.motor_id;
+                -- Jika status sewa berubah menjadi 'dikonfirmasi', ubah status motor menjadi 'disewa'
+                IF NEW.status = 'dikonfirmasi' AND OLD.status != 'dikonfirmasi' THEN
+                    UPDATE motors 
+                    SET status = 'disewa' 
+                    WHERE id = NEW.motor_id;
                 END IF;
-            END
+
+                -- Jika status sewa berubah menjadi 'selesai' atau 'dibatalkan', kembalikan status motor menjadi 'tersedia'
+                IF (NEW.status = 'selesai' OR NEW.status = 'dibatalkan') AND (OLD.status != NEW.status) THEN
+                    UPDATE motors 
+                    SET status = 'tersedia' 
+                    WHERE id = NEW.motor_id;
+                END IF;
+            END;
         ");
     }
 
     public function down(): void
     {
-        DB::unprepared("DROP TRIGGER IF EXISTS trg_update_motor_status_after_booking_update");
+        DB::unprepared("DROP TRIGGER IF EXISTS after_penyewaan_update_sync_motor;");
     }
 };
-```
-
-### Jalankan Migration ke Database:
-```bash
-php artisan migrate
 ```
 
 ---
 
 ## FASE 4: JWT AUTH & CUSTOM ROLE MIDDLEWARE
 
-### 4.1 Buat Middleware: `app/Http/Middleware/RoleMiddleware.php`
+### 4.1 Buat Middleware Peran (Role)
 ```bash
 php artisan make:middleware RoleMiddleware
 ```
-Isi kodenya:
+
+Buka file `app/Http/Middleware/RoleMiddleware.php`:
 ```php
 <?php
 
@@ -446,28 +471,31 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        if (! auth('api')->check()) {
+        $user = auth('api')->user() ?? auth('web')->user();
+
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
-        $user = auth('api')->user();
+
         if (! in_array($user->role, $roles)) {
-            return response()->json(['message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
+            return response()->json([
+                'message' => 'Akses ditolak. Anda tidak memiliki izin untuk peran ini.'
+            ], 403);
         }
+
         return $next($request);
     }
 }
 ```
 
 ### 4.2 Daftarkan Alias Middleware di `bootstrap/app.php`
-Buka `bootstrap/app.php`:
+Buka file `bootstrap/app.php`:
 ```php
 <?php
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
-use App\Http\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -476,23 +504,21 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+    ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'role' => RoleMiddleware::class,
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
-        );
+    ->withExceptions(function (Exceptions $exceptions) {
+        //
     })->create();
 ```
 
 ---
 
-## FASE 5 & 6: BACKEND REST API CONTROLLERS (API MODUL)
+## FASE 5 & 6: BACKEND REST API CONTROLLERS (API MODUL & MOBILE)
 
-Buat 4 controller API:
+Buat controller API:
 ```bash
 php artisan make:controller AuthController
 php artisan make:controller OwnerController
@@ -507,19 +533,19 @@ php artisan make:controller BookingController
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
-            'no_tlpn' => 'required|string|max:20',
-            'role' => 'required|in:penyewa,pemilik',
-            'password' => 'required|string|min:8',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
+            'no_tlpn'  => 'required|string|max:15',
+            'role'     => 'required|in:admin,pemilik,penyewa',
+            'password' => 'required|string|min:6',
         ]);
 
         $user = User::create([
@@ -568,6 +594,7 @@ class AuthController extends Controller
 ```
 
 #### File: `app/Http/Controllers/OwnerController.php`
+> **Dukungan Upload Foto Motor di API:** Mengunggah file foto ke `storage/app/public/motors`.
 ```php
 <?php
 
@@ -585,7 +612,7 @@ class OwnerController extends Controller
             'merek'               => 'required|string|max:100',
             'tipe_cc'             => 'required|in:100,125,150',
             'no_plat'             => 'required|string|unique:motors,no_plat',
-            'foto'                => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'foto'                => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'documen_kepemilikan' => 'nullable|file|mimes:pdf,jpeg,png,jpg|max:2048',
         ]);
 
@@ -607,8 +634,9 @@ class OwnerController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Motor berhasil didaftarkan dan menunggu verifikasi admin',
+            'message' => 'Motor berhasil ditambahkan, menunggu verifikasi admin',
             'motor'   => $motor,
+            'foto_url'=> $motor->foto_url,
         ], 201);
     }
 
@@ -619,25 +647,21 @@ class OwnerController extends Controller
             ->get();
 
         return response()->json([
-            'message' => 'Daftar motor Anda',
+            'message' => 'Daftar motor milik Anda',
             'motors'  => $motors,
         ]);
     }
 
     public function revenueReport()
     {
-        $ownerId = auth('api')->id();
-
-        $laporan = BagiHasil::with(['penyewaan.motor'])
-            ->whereHas('penyewaan.motor', function ($query) use ($ownerId) {
-                $query->where('pemilik_id', $ownerId);
-            })
-            ->get();
+        $laporan = BagiHasil::whereHas('penyewaan.motor', function ($query) {
+            $query->where('pemilik_id', auth('api')->id());
+        })->with('penyewaan.motor')->get();
 
         $totalPendapatan = $laporan->sum('bagi_hasil_pemilik');
 
         return response()->json([
-            'message'          => 'Laporan pendapatan bagi hasil pemilik',
+            'message'          => 'Laporan pendapatan pemilik kendaraan',
             'total_pendapatan' => $totalPendapatan,
             'rincian'          => $laporan,
         ]);
@@ -856,974 +880,677 @@ class BookingController extends Controller
 
 ---
 
-## FASE 7: WEB CONTROLLER & ANTARMUKA UI (BLADE + CHART.JS)
+## FASE 7: IMPLEMENTASI ADMIN PANEL & CRUD MODERN DENGAN MOONSHINE
 
-### 7.1 Web Controller: `app/Http/Controllers/WebController.php`
+Dengan library **MoonShine**, kita tidak perlu menulis puluhan file Blade manual dan Controller web yang panjang. MoonShine menangani seluruh tampilan tabel, form input, validasi, pencarian, badge status, **upload foto motor**, serta statistik visual secara otomatis.
+
+### 7.1 Instalasi & Inisialisasi MoonShine di Windows
+
+Buka terminal di direktori proyek `rental_motor`:
 ```bash
-php artisan make:controller WebController
+composer require moonshine/moonshine
+php artisan moonshine:install
 ```
-Isi lengkap file `WebController.php`:
+Proses ini akan otomatis:
+* Membuat migration tabel bawaan pengguna admin (`moonshine_users`).
+* Menerbitkan konfigurasi `config/moonshine.php`.
+* Mendaftarkan `MoonShineServiceProvider`.
+
+Jalankan migrasi tabel MoonShine:
+```bash
+php artisan migrate
+```
+
+---
+
+### 7.2 Pembuatan Akun Super Admin MoonShine
+
+Jalankan perintah ini di terminal Windows untuk membuat akun login Dashboard Admin:
+```bash
+php artisan moonshine:user
+```
+Terminal akan meminta input:
+* **Username / Email:** `admin@rental.com`
+* **Name:** `Admin Rental`
+* **Password:** `admin123`
+
+---
+
+### 7.3 Resource MotorResource (CRUD Armada & Fitur Upload Foto Motor)
+
+Jalankan perintah generator resource MoonShine:
+```bash
+php artisan moonshine:resource Motor
+```
+Perintah ini akan membuat file di `app/MoonShine/Resources/MotorResource.php`.
+
+Edit file `app/MoonShine/Resources/MotorResource.php`:
+> **Perhatikan Field Foto:** Menggunakan `Image::make('Foto Unit Motor', 'foto')` dengan disk `public` dan direktori `motors`. MoonShine akan otomatis membuat thumbnail di tabel, menyediakan tombol preview, tombol hapus foto (removable), serta validasi format gambar!
+
 ```php
 <?php
 
-namespace App\Http\Controllers;
+declare(strict_types=1);
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
+namespace App\MoonShine\Resources;
+
 use App\Models\Motor;
-use App\Models\Penyewaan;
-use App\Models\BagiHasil;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Text;
+use MoonShine\Fields\Select;
+use MoonShine\Fields\Image;
+use MoonShine\Fields\File;
+use MoonShine\Fields\Relationships\BelongsTo;
+use MoonShine\Fields\Relationships\HasOne;
 
-class WebController extends Controller
+/**
+ * @extends ModelResource<Motor>
+ */
+class MotorResource extends ModelResource
 {
-    public function adminDashboard()
+    protected string $model = Motor::class;
+
+    protected string $title = 'Armada Motor';
+
+    // Kolom pencarian otomatis
+    protected array $search = ['merek', 'no_plat'];
+
+    public function fields(): array
     {
-        $totalMotor = Motor::count();
-        $motors = Motor::with('pemilik', 'tarif')->latest()->get();
-        $bookings = Penyewaan::with(['motor', 'penyewa', 'transaksi'])->latest()->get();
-        $bagiHasils = BagiHasil::all();
+        return [
+            ID::make()->sortable(),
 
-        $totalOmset   = $bagiHasils->sum(fn ($b) => $b->bagi_hasil_pemilik + $b->bagi_hasil_admin);
-        $totalAdmin   = $bagiHasils->sum('bagi_hasil_admin');
-        $totalPemilik = $bagiHasils->sum('bagi_hasil_pemilik');
+            BelongsTo::make('Pemilik Kendaraan', 'pemilik', resource: new UserResource())
+                ->searchable()
+                ->required(),
 
-        $chartData = [
-            'harian'   => Penyewaan::where('tipe_durasi', 'harian')->count(),
-            'mingguan' => Penyewaan::where('tipe_durasi', 'mingguan')->count(),
-            'bulanan'  => Penyewaan::where('tipe_durasi', 'bulanan')->count(),
+            Text::make('Merek / Model', 'merek')
+                ->required()
+                ->sortable(),
+
+            Select::make('Kapasitas Mesin', 'tipe_cc')
+                ->options([
+                    '100' => '100 CC',
+                    '125' => '125 CC',
+                    '150' => '150 CC',
+                ])
+                ->required(),
+
+            Text::make('Nomor Plat', 'no_plat')
+                ->required()
+                ->sortable(),
+
+            Select::make('Status Unit', 'status')
+                ->options([
+                    'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                    'tersedia'            => 'Tersedia',
+                    'disewa'               => 'Sedang Disewa',
+                ])
+                ->badge(fn($status) => match($status) {
+                    'tersedia' => 'success',
+                    'disewa'   => 'warning',
+                    default    => 'gray',
+                }),
+
+            // FITUR UPLOAD FOTO MOTOR LENGKAP
+            Image::make('Foto Unit Motor', 'foto')
+                ->disk('public')
+                ->dir('motors')
+                ->removable()
+                ->allowedExtensions(['jpg', 'jpeg', 'png', 'webp']),
+
+            File::make('Dokumen Kepemilikan (STNK/BPKB)', 'documen_kepemilikan')
+                ->disk('public')
+                ->dir('documents')
+                ->removable()
+                ->allowedExtensions(['pdf', 'jpg', 'png']),
+
+            HasOne::make('Tarif Rental', 'tarif', resource: new TarifRentalResource())
+                ->hideOnIndex(),
         ];
-
-        return view('admin_dashboard', compact(
-            'totalMotor', 'motors', 'bookings', 'totalOmset',
-            'totalAdmin', 'totalPemilik', 'chartData'
-        ));
     }
 
-    public function ownerDashboard()
+    public function rules(mixed $item): array
     {
-        $owner = Auth::guard('web')->user();
-        $motors = $owner ? Motor::where('pemilik_id', $owner->id)->with('tarif')->get() : collect();
-        $totalPendapatan = BagiHasil::whereHas('penyewaan.motor', function ($q) use ($owner) {
-            if ($owner) $q->where('pemilik_id', $owner->id);
-        })->sum('bagi_hasil_pemilik');
-
-        return view('owner_dashboard', compact('owner', 'motors', 'totalPendapatan'));
+        return [
+            'pemilik_id'          => ['required', 'exists:users,id'],
+            'merek'               => ['required', 'string', 'max:100'],
+            'tipe_cc'             => ['required', 'in:100,125,150'],
+            'no_plat'             => ['required', 'string', 'max:20', 'unique:motors,no_plat,' . $item?->id],
+            'foto'                => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'documen_kepemilikan' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg', 'max:2048'],
+        ];
     }
 
-    public function rentDashboard()
+    public function filters(): array
     {
-        $availableMotors = Motor::where('status', 'tersedia')->with('tarif')->get();
-        $user = Auth::guard('web')->user();
-        $allBookings = ($user && $user->role === 'penyewa')
-            ? Penyewaan::where('penyewa_id', $user->id)->with('motor', 'penyewa', 'transaksi')->latest()->get()
-            : Penyewaan::with('motor', 'penyewa', 'transaksi')->latest()->get();
-
-        return view('rent_dashboard', compact('availableMotors', 'allBookings'));
-    }
-
-    public function storeMotorWeb(Request $request)
-    {
-        $validated = $request->validate([
-            'merek'   => 'required|string|max:100',
-            'tipe_cc' => 'required|in:100,125,150',
-            'no_plat' => 'required|string|unique:motors,no_plat',
-        ]);
-
-        Motor::create([
-            'pemilik_id' => Auth::guard('web')->id() ?? 1,
-            'merek'      => $validated['merek'],
-            'tipe_cc'    => $validated['tipe_cc'],
-            'no_plat'    => $validated['no_plat'],
-            'status'     => 'menunggu_verifikasi',
-        ]);
-
-        return redirect('/owner/dashboard')->with('success', 'Motor berhasil didaftarkan dan menunggu verifikasi admin!');
-    }
-
-    public function verifyMotorWeb(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'tarif_harian'   => 'required|numeric|min:0',
-            'tarif_mingguan' => 'required|numeric|min:0',
-            'tarif_bulanan'  => 'required|numeric|min:0',
-        ]);
-
-        $motor = Motor::findOrFail($id);
-        $motor->update(['status' => 'tersedia']);
-
-        \App\Models\TarifRental::updateOrCreate(
-            ['motor_id' => $motor->id],
-            [
-                'tarif_harian'   => $validated['tarif_harian'],
-                'tarif_mingguan' => $validated['tarif_mingguan'],
-                'tarif_bulanan'  => $validated['tarif_bulanan'],
-            ]
-        );
-
-        return redirect('/admin/dashboard')->with('success', 'Motor ' . $motor->merek . ' berhasil diverifikasi dan kini berstatus Tersedia!');
-    }
-
-    public function bookMotorWeb(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'tanggal_mulai'     => 'required|date',
-            'tipe_durasi'       => 'required|in:harian,mingguan,bulanan',
-            'metode_pembayaran' => 'required|string',
-        ]);
-
-        $motor = Motor::with('tarif')->findOrFail($id);
-
-        $mulai = \Carbon\Carbon::parse($validated['tanggal_mulai']);
-        if ($validated['tipe_durasi'] === 'harian') {
-            $selesai = $mulai->copy()->addDay();
-            $harga   = $motor->tarif->tarif_harian;
-        } elseif ($validated['tipe_durasi'] === 'mingguan') {
-            $selesai = $mulai->copy()->addWeek();
-            $harga   = $motor->tarif->tarif_mingguan;
-        } else {
-            $selesai = $mulai->copy()->addMonth();
-            $harga   = $motor->tarif->tarif_bulanan;
-        }
-
-        $penyewaan = Penyewaan::create([
-            'penyewa_id'      => Auth::guard('web')->id() ?? 3,
-            'motor_id'        => $motor->id,
-            'tanggal_mulai'   => $mulai->toDateString(),
-            'tanggal_selesai' => $selesai->toDateString(),
-            'tipe_durasi'     => $validated['tipe_durasi'],
-            'harga'           => $harga,
-            'status'          => 'menunggu_pembayaran',
-        ]);
-
-        \App\Models\Transaksi::create([
-            'pemesanan_id'      => $penyewaan->id,
-            'jumlah'            => $harga,
-            'metode_pembayaran' => $validated['metode_pembayaran'],
-            'status'            => 'berhasil',
-            'tanggal'           => now(),
-        ]);
-
-        return redirect('/rent/dashboard')->with('success', 'Penyewaan berhasil diajukan dan dibayar!');
-    }
-
-    public function confirmBookingWeb($id)
-    {
-        $penyewaan = Penyewaan::with('transaksi')->findOrFail($id);
-        $penyewaan->update(['status' => 'dikonfirmasi']);
-
-        $totalBayar   = $penyewaan->harga;
-        $porsiPemilik = $totalBayar * 0.80;
-        $porsiAdmin   = $totalBayar * 0.20;
-
-        BagiHasil::updateOrCreate(
-            ['pemesanan_id' => $penyewaan->id],
-            [
-                'bagi_hasil_pemilik' => $porsiPemilik,
-                'bagi_hasil_admin'   => $porsiAdmin,
-                'tanggal'            => now()->toDateString(),
-            ]
-        );
-
-        return redirect('/admin/dashboard')->with('success', 'Penyewaan dikonfirmasi! Motor otomatis berstatus Disewa.');
-    }
-
-    public function returnBookingWeb($id)
-    {
-        $penyewaan = Penyewaan::findOrFail($id);
-        $penyewaan->update(['status' => 'selesai']);
-
-        if ($penyewaan->bagiHasil) {
-            $penyewaan->bagiHasil->update(['settled_at' => now()]);
-        }
-
-        return redirect('/admin/dashboard')->with('success', 'Motor berhasil dikembalikan dan kini kembali Tersedia untuk disewa!');
-    }
-
-    public function showLoginForm()
-    {
-        return view('login');
-    }
-
-    public function loginWeb(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
-
-        if (Auth::guard('web')->attempt($credentials)) {
-            $request->session()->regenerate();
-            $user = Auth::guard('web')->user();
-
-            if ($user->role === 'admin') {
-                return redirect('/admin/dashboard');
-            } elseif ($user->role === 'pemilik') {
-                return redirect('/owner/dashboard');
-            } else {
-                return redirect('/rent/dashboard');
-            }
-        }
-
-        return back()->with('error', 'Email atau kata sandi salah!');
-    }
-
-    public function showRegisterForm()
-    {
-        return view('register');
-    }
-
-    public function registerWeb(Request $request)
-    {
-        $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'no_tlpn'  => 'required|string|max:20',
-            'role'     => 'required|in:pemilik,penyewa',
-            'password' => 'required|min:6',
-        ]);
-
-        $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'no_tlpn'  => $validated['no_tlpn'],
-            'role'     => $validated['role'],
-            'password' => Hash::make($validated['password']),
-        ]);
-
-        Auth::guard('web')->login($user);
-
-        return redirect($user->role === 'pemilik' ? '/owner/dashboard' : '/rent/dashboard')
-            ->with('success', 'Akun berhasil dibuat dan Anda telah masuk!');
-    }
-
-    public function logoutWeb(Request $request)
-    {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect('/login')->with('success', 'Anda telah berhasil keluar.');
-    }
-
-    public function updateMotorWeb(Request $request, $id)
-    {
-        $motor = Motor::findOrFail($id);
-
-        if (Auth::guard('web')->check() && Auth::guard('web')->user()->role === 'pemilik' && $motor->pemilik_id !== Auth::guard('web')->id()) {
-            return redirect('/owner/dashboard')->with('error', 'Anda tidak memiliki hak untuk mengubah data motor ini');
-        }
-
-        $validated = $request->validate([
-            'merek'   => 'required|string|max:100',
-            'tipe_cc' => 'required|in:100,125,150',
-            'no_plat' => 'required|string|unique:motors,no_plat,' . $motor->id,
-        ]);
-
-        $motor->update([
-            'merek'   => $validated['merek'],
-            'tipe_cc' => $validated['tipe_cc'],
-            'no_plat' => $validated['no_plat'],
-        ]);
-
-        return redirect('/owner/dashboard')->with('success', 'Data motor berhasil diperbarui');
-    }
-
-    public function deleteMotorWeb($id)
-    {
-        $motor = Motor::findOrFail($id);
-
-        if (Auth::guard('web')->check() && Auth::guard('web')->user()->role === 'pemilik' && $motor->pemilik_id !== Auth::guard('web')->id()) {
-            return redirect('/owner/dashboard')->with('error', 'Anda tidak memiliki hak untuk menghapus motor ini');
-        }
-
-        if ($motor->status === 'disewa') {
-            return redirect('/owner/dashboard')->with('error', 'Motor sedang dalam masa sewa dan tidak dapat dihapus');
-        }
-
-        $motor->delete();
-
-        return redirect('/owner/dashboard')->with('success', 'Unit motor berhasil dihapus dari sistem');
+        return [
+            Select::make('Filter Status', 'status')
+                ->options([
+                    'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                    'tersedia'            => 'Tersedia',
+                    'disewa'               => 'Sedang Disewa',
+                ]),
+        ];
     }
 }
 ```
 
 ---
 
-### 7.2 Seluruh File View Blade
+### 7.4 Resource TarifRentalResource (Penetapan Tarif Harian, Mingguan, Bulanan)
 
-#### File: `resources/views/app.blade.php` (Master Template)
+Generate resource:
+```bash
+php artisan moonshine:resource TarifRental
+```
+Buka `app/MoonShine/Resources/TarifRentalResource.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\MoonShine\Resources;
+
+use App\Models\TarifRental;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Number;
+use MoonShine\Fields\Relationships\BelongsTo;
+
+class TarifRentalResource extends ModelResource
+{
+    protected string $model = TarifRental::class;
+
+    protected string $title = 'Tarif Rental';
+
+    public function fields(): array
+    {
+        return [
+            ID::make()->sortable(),
+
+            BelongsTo::make('Unit Motor', 'motor', resource: new MotorResource())
+                ->searchable()
+                ->required(),
+
+            Number::make('Tarif Harian (Rp)', 'tarif_harian')
+                ->required()
+                ->sortable(),
+
+            Number::make('Tarif Mingguan (Rp)', 'tarif_mingguan')
+                ->required()
+                ->sortable(),
+
+            Number::make('Tarif Bulanan (Rp)', 'tarif_bulanan')
+                ->required()
+                ->sortable(),
+        ];
+    }
+
+    public function rules(mixed $item): array
+    {
+        return [
+            'motor_id'       => ['required', 'exists:motors,id'],
+            'tarif_harian'   => ['required', 'numeric', 'min:0'],
+            'tarif_mingguan' => ['required', 'numeric', 'min:0'],
+            'tarif_bulanan'  => ['required', 'numeric', 'min:0'],
+        ];
+    }
+}
+```
+
+---
+
+### 7.5 Resource PenyewaanResource (Manajemen Transaksi Sewa)
+
+Generate resource:
+```bash
+php artisan moonshine:resource Penyewaan
+```
+Buka `app/MoonShine/Resources/PenyewaanResource.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\MoonShine\Resources;
+
+use App\Models\Penyewaan;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Date;
+use MoonShine\Fields\Select;
+use MoonShine\Fields\Number;
+use MoonShine\Fields\Relationships\BelongsTo;
+
+class PenyewaanResource extends ModelResource
+{
+    protected string $model = Penyewaan::class;
+
+    protected string $title = 'Pesanan Sewa';
+
+    public function fields(): array
+    {
+        return [
+            ID::make()->sortable(),
+
+            BelongsTo::make('Penyewa', 'penyewa', resource: new UserResource())
+                ->searchable(),
+
+            BelongsTo::make('Unit Motor Disewa', 'motor', resource: new MotorResource())
+                ->searchable(),
+
+            Date::make('Mulai Sewa', 'tanggal_mulai')
+                ->sortable(),
+
+            Date::make('Selesai Sewa', 'tanggal_selesai')
+                ->sortable(),
+
+            Select::make('Durasi', 'tipe_durasi')
+                ->options([
+                    'harian'   => 'Harian',
+                    'mingguan' => 'Mingguan',
+                    'bulanan'  => 'Bulanan',
+                ]),
+
+            Number::make('Total Biaya (Rp)', 'harga')
+                ->sortable(),
+
+            Select::make('Status Sewa', 'status')
+                ->options([
+                    'menunggu_pembayaran' => 'Menunggu Pembayaran',
+                    'dikonfirmasi'        => 'Dikonfirmasi (Aktif Disewa)',
+                    'selesai'             => 'Selesai (Kembali)',
+                    'dibatalkan'          => 'Dibatalkan',
+                ])
+                ->badge(fn($status) => match($status) {
+                    'dikonfirmasi' => 'success',
+                    'selesai'      => 'info',
+                    'dibatalkan'   => 'error',
+                    default        => 'warning',
+                }),
+        ];
+    }
+
+    public function rules(mixed $item): array
+    {
+        return [
+            'penyewa_id'      => ['required', 'exists:users,id'],
+            'motor_id'        => ['required', 'exists:motors,id'],
+            'tanggal_mulai'   => ['required', 'date'],
+            'tanggal_selesai' => ['required', 'date'],
+            'tipe_durasi'     => ['required', 'in:harian,mingguan,bulanan'],
+            'harga'           => ['required', 'numeric', 'min:0'],
+            'status'          => ['required', 'in:menunggu_pembayaran,dikonfirmasi,selesai,dibatalkan'],
+        ];
+    }
+}
+```
+
+---
+
+### 7.6 Resource TransaksiResource (Pembayaran & Verifikasi)
+
+Generate resource:
+```bash
+php artisan moonshine:resource Transaksi
+```
+Buka `app/MoonShine/Resources/TransaksiResource.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\MoonShine\Resources;
+
+use App\Models\Transaksi;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Text;
+use MoonShine\Fields\Number;
+use MoonShine\Fields\Select;
+use MoonShine\Fields\Date;
+use MoonShine\Fields\Relationships\BelongsTo;
+
+class TransaksiResource extends ModelResource
+{
+    protected string $model = Transaksi::class;
+
+    protected string $title = 'Data Pembayaran';
+
+    public function fields(): array
+    {
+        return [
+            ID::make()->sortable(),
+
+            BelongsTo::make('ID Pemesanan', 'penyewaan', resource: new PenyewaanResource()),
+
+            Number::make('Nominal (Rp)', 'jumlah')
+                ->sortable(),
+
+            Text::make('Metode Pembayaran', 'metode_pembayaran'),
+
+            Select::make('Status Bayar', 'status')
+                ->options([
+                    'pending'  => 'Pending',
+                    'berhasil' => 'Berhasil (Lunas)',
+                    'gagal'    => 'Gagal',
+                ])
+                ->badge(fn($status) => match($status) {
+                    'berhasil' => 'success',
+                    'gagal'    => 'error',
+                    default    => 'warning',
+                }),
+
+            Date::make('Tanggal Bayar', 'tanggal')
+                ->sortable(),
+        ];
+    }
+
+    public function rules(mixed $item): array
+    {
+        return [
+            'pemesanan_id'      => ['required', 'exists:penyewaans,id'],
+            'jumlah'            => ['required', 'numeric', 'min:0'],
+            'metode_pembayaran' => ['required', 'string'],
+            'status'            => ['required', 'in:pending,berhasil,gagal'],
+        ];
+    }
+}
+```
+
+---
+
+### 7.7 Resource BagiHasilResource (Laporan Keuangan & Export Excel/CSV)
+
+Generate resource:
+```bash
+php artisan moonshine:resource BagiHasil
+```
+Buka `app/MoonShine/Resources/BagiHasilResource.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\MoonShine\Resources;
+
+use App\Models\BagiHasil;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Number;
+use MoonShine\Fields\Date;
+use MoonShine\Fields\Relationships\BelongsTo;
+
+class BagiHasilResource extends ModelResource
+{
+    protected string $model = BagiHasil::class;
+
+    protected string $title = 'Laporan Bagi Hasil';
+
+    public function fields(): array
+    {
+        return [
+            ID::make()->sortable(),
+
+            BelongsTo::make('Pemesanan Sewa', 'penyewaan', resource: new PenyewaanResource()),
+
+            Number::make('Porsi Pemilik (80%)', 'bagi_hasil_pemilik')
+                ->sortable(),
+
+            Number::make('Porsi Admin (20%)', 'bagi_hasil_admin')
+                ->sortable(),
+
+            Date::make('Tanggal Transaksi', 'tanggal')
+                ->sortable(),
+
+            Date::make('Penyelesaian (Settled)', 'settled_at'),
+        ];
+    }
+
+    public function rules(mixed $item): array
+    {
+        return [
+            'pemesanan_id'       => ['required', 'exists:penyewaans,id'],
+            'bagi_hasil_pemilik' => ['required', 'numeric', 'min:0'],
+            'bagi_hasil_admin'   => ['required', 'numeric', 'min:0'],
+            'tanggal'            => ['required', 'date'],
+        ];
+    }
+}
+```
+
+---
+
+### 7.8 Resource UserResource (Manajemen Akun Pengguna)
+
+Generate resource:
+```bash
+php artisan moonshine:resource User
+```
+Buka `app/MoonShine/Resources/UserResource.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\MoonShine\Resources;
+
+use App\Models\User;
+use MoonShine\Resources\ModelResource;
+use MoonShine\Fields\ID;
+use MoonShine\Fields\Text;
+use MoonShine\Fields\Select;
+
+class UserResource extends ModelResource
+{
+    protected string $model = User::class;
+
+    protected string $title = 'Pengguna & Pelanggan';
+
+    protected array $search = ['name', 'email', 'no_tlpn'];
+
+    public function fields(): array
+    {
+        return [
+            ID::make()->sortable(),
+
+            Text::make('Nama Lengkap', 'name')
+                ->required()
+                ->sortable(),
+
+            Text::make('Email', 'email')
+                ->required()
+                ->sortable(),
+
+            Text::make('No. Telepon/WA', 'no_tlpn')
+                ->required(),
+
+            Select::make('Peran (Role)', 'role')
+                ->options([
+                    'admin'   => 'Admin Sistem',
+                    'pemilik' => 'Pemilik Motor',
+                    'penyewa' => 'Penyewa / Customer',
+                ])
+                ->badge(fn($role) => match($role) {
+                    'admin'   => 'purple',
+                    'pemilik' => 'info',
+                    default   => 'gray',
+                }),
+        ];
+    }
+
+    public function rules(mixed $item): array
+    {
+        return [
+            'name'    => ['required', 'string', 'max:255'],
+            'email'   => ['required', 'email', 'unique:users,email,' . $item?->id],
+            'no_tlpn' => ['required', 'string', 'max:20'],
+            'role'    => ['required', 'in:admin,pemilik,penyewa'],
+        ];
+    }
+}
+```
+
+---
+
+### 7.9 Konfigurasi Menu Navigasi MoonShine
+
+Daftarkan seluruh resource ke dalam menu sidebar MoonShine. Buka file `app/Providers/MoonShineServiceProvider.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use MoonShine\Providers\MoonShineApplicationServiceProvider;
+use MoonShine\Menu\MenuGroup;
+use MoonShine\Menu\MenuItem;
+use App\MoonShine\Resources\MotorResource;
+use App\MoonShine\Resources\TarifRentalResource;
+use App\MoonShine\Resources\PenyewaanResource;
+use App\MoonShine\Resources\TransaksiResource;
+use App\MoonShine\Resources\BagiHasilResource;
+use App\MoonShine\Resources\UserResource;
+
+class MoonShineServiceProvider extends MoonShineApplicationServiceProvider
+{
+    protected function menu(): array
+    {
+        return [
+            MenuGroup::make('Armada Kendaraan', [
+                MenuItem::make('Daftar Motor & Foto', new MotorResource())
+                    ->icon('heroicons.outline.truck'),
+                MenuItem::make('Tarif Rental', new TarifRentalResource())
+                    ->icon('heroicons.outline.currency-dollar'),
+            ]),
+
+            MenuGroup::make('Operasional Sewa', [
+                MenuItem::make('Transaksi Penyewaan', new PenyewaanResource())
+                    ->icon('heroicons.outline.shopping-cart'),
+                MenuItem::make('Pembayaran', new TransaksiResource())
+                    ->icon('heroicons.outline.credit-card'),
+            ]),
+
+            MenuGroup::make('Keuangan & Laporan', [
+                MenuItem::make('Laporan Bagi Hasil', new BagiHasilResource())
+                    ->icon('heroicons.outline.chart-bar'),
+            ]),
+
+            MenuGroup::make('Pengaturan Akun', [
+                MenuItem::make('Data Pengguna', new UserResource())
+                    ->icon('heroicons.outline.users'),
+            ]),
+        ];
+    }
+}
+```
+
+---
+
+### 7.10 Landing Page Publik Katalog Motor
+
+Untuk halaman depan pengunjung umum yang ingin melihat katalog motor yang tersedia beserta fotonya, buat tampilan di `resources/views/welcome.blade.php`:
+
 ```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Rental Motor')</title>
-    <!-- Bootstrap 5 CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Rental Motor - Katalog Publik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="/">Rental Motor</a>
-        <div class="navbar-nav ms-auto align-items-center">
-            @auth('web')
-                <span class="navbar-text me-3 text-white">
-                    Halo, <strong>{{ auth('web')->user()->name }}</strong> ({{ ucfirst(auth('web')->user()->role) }})
-                </span>
-
-                @if(auth('web')->user()->role == 'admin')
-                    <a class="nav-link" href="/admin/dashboard">Admin Panel</a>
-                @elseif(auth('web')->user()->role == 'pemilik')
-                    <a class="nav-link" href="/owner/dashboard">Motor Saya</a>
-                @else
-                    <a class="nav-link" href="/rent/dashboard">Katalog & Riwayat Sewa</a>
-                @endif
-
-                <form action="/logout" method="POST" class="d-inline ms-2">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-light btn-sm">Keluar</button>
-                </form>
-            @else
-                <a class="nav-link me-2" href="/rent/dashboard">Katalog Sewa</a>
-                <a class="btn btn-outline-light btn-sm me-2" href="/login">Masuk</a>
-                <a class="btn btn-primary btn-sm" href="/register">Daftar</a>
-            @endauth
+<body class="bg-slate-50 text-slate-800">
+    <!-- Navbar -->
+    <header class="bg-indigo-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tight">🏍️ Sistem Rental Motor</h1>
+            <div class="space-x-3">
+                <a href="/admin" class="bg-white text-indigo-700 font-semibold px-4 py-2 rounded-lg shadow hover:bg-slate-100 transition">
+                    Login Admin Panel (MoonShine)
+                </a>
+            </div>
         </div>
-    </div>
-</nav>
+    </header>
 
-<div class="container">
-    @yield('content')
-</div>
+    <!-- Konten Katalog -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="mb-8">
+            <h2 class="text-3xl font-extrabold text-slate-900">Katalog Armada Tersedia</h2>
+            <p class="text-slate-600">Pilih unit motor favorit Anda dengan kondisi prima dan siap pakai.</p>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-@stack('scripts')
+        @php
+            $motors = \App\Models\Motor::with('tarif')->where('status', 'tersedia')->get();
+        @endphp
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            @forelse($motors as $motor)
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition">
+                    <!-- Foto Unit Motor -->
+                    <div class="h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
+                        @if($motor->foto)
+                            <img src="{{ asset('storage/' . $motor->foto) }}" alt="{{ $motor->merek }}" class="w-full h-full object-cover">
+                        @else
+                            <div class="text-slate-400 text-center">
+                                <span class="text-4xl">🛵</span>
+                                <p class="text-xs mt-1">Belum ada foto</p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Informasi Motor -->
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h3 class="text-lg font-bold text-slate-900">{{ $motor->merek }}</h3>
+                                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                                    {{ $motor->tipe_cc }} CC
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">Plat: {{ $motor->no_plat }}</p>
+                        </div>
+
+                        <!-- Tarif Rental -->
+                        <div class="mt-4 pt-3 border-t border-slate-100">
+                            @if($motor->tarif)
+                                <div class="text-xs text-slate-600 space-y-1">
+                                    <div class="flex justify-between">
+                                        <span>Harian:</span>
+                                        <span class="font-bold text-indigo-700">Rp {{ number_format($motor->tarif->tarif_harian, 0, ',', '.') }}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Mingguan:</span>
+                                        <span>Rp {{ number_format($motor->tarif->tarif_mingguan, 0, ',', '.') }}</span>
+                                    </div>
+                                </div>
+                            @else
+                                <p class="text-xs text-slate-400 italic">Tarif belum diatur</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="col-span-full py-12 text-center text-slate-400">
+                    <span class="text-5xl block mb-2">🏍️</span>
+                    <p class="text-lg font-medium">Belum ada unit motor yang berstatus tersedia saat ini.</p>
+                </div>
+            @endforelse
+        </div>
+    </main>
 </body>
 </html>
-```
-
-#### File: `resources/views/admin_dashboard.blade.php`
-```html
-@extends('app')
-
-@section('title', 'Admin Dashboard - Rental Motor')
-
-@section('content')
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center p-3">
-            <h6 class="text-muted">Total Unit Motor</h6>
-            <h3 class="fw-bold">{{ $totalMotor }}</h3>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center p-3">
-            <h6 class="text-muted">Total Omset</h6>
-            <h3 class="fw-bold text-success">Rp {{ number_format($totalOmset, 0, ',', '.') }}</h3>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center p-3">
-            <h6 class="text-muted">Bagi Hasil Admin</h6>
-            <h3 class="fw-bold text-primary">Rp {{ number_format($totalAdmin, 0, ',', '.') }}</h3>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm text-center p-3">
-            <h6 class="text-muted">Bagi Hasil Pemilik</h6>
-            <h3 class="fw-bold text-info">Rp {{ number_format($totalPemilik, 0, ',', '.') }}</h3>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <!-- Chart.js: Bar Chart Durasi Sewa -->
-    <div class="col-md-6 mb-3">
-        <div class="card shadow-sm p-4">
-            <h5 class="fw-bold mb-3">Statistik Durasi Penyewaan</h5>
-            <canvas id="durationChart" height="200"></canvas>
-        </div>
-    </div>
-    <!-- Chart.js: Doughnut Chart Bagi Hasil -->
-    <div class="col-md-6 mb-3">
-        <div class="card shadow-sm p-4">
-            <h5 class="fw-bold mb-3">Komposisi Bagi Hasil</h5>
-            <canvas id="revenuePieChart" height="200"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Tabel Daftar Unit Motor & Verifikasi Tarif -->
-<div class="card shadow-sm p-4 mb-4">
-    <h5 class="fw-bold mb-3">Daftar Unit Motor & Status</h5>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Plat</th>
-                    <th>Merek</th>
-                    <th>CC</th>
-                    <th>Pemilik</th>
-                    <th>Status</th>
-                    <th>Tarif Harian / Mingguan / Bulanan</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($motors as $motor)
-                <tr>
-                    <td><strong>{{ $motor->no_plat }}</strong></td>
-                    <td>{{ $motor->merek }}</td>
-                    <td>{{ $motor->tipe_cc }} cc</td>
-                    <td>{{ $motor->pemilik->name ?? '-' }}</td>
-                    <td>
-                        <span class="badge {{ $motor->status == 'tersedia' ? 'bg-success' : ($motor->status == 'disewa' ? 'bg-warning text-dark' : 'bg-secondary') }}">
-                            {{ $motor->status }}
-                        </span>
-                    </td>
-                    <td>
-                        @if($motor->tarif)
-                            Rp {{ number_format($motor->tarif->tarif_harian, 0, ',', '.') }} / 
-                            Rp {{ number_format($motor->tarif->tarif_mingguan, 0, ',', '.') }} / 
-                            Rp {{ number_format($motor->tarif->tarif_bulanan, 0, ',', '.') }}
-                        @else
-                            <span class="text-muted">Belum ada tarif</span>
-                        @endif
-                    </td>
-                    <td>
-                        @if($motor->status == 'menunggu_verifikasi')
-                            <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#verifyModal{{ $motor->id }}">
-                                Verifikasi & Atur Tarif
-                            </button>
-
-                            <div class="modal fade" id="verifyModal{{ $motor->id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <form action="/admin/motors/{{ $motor->id }}/verify-web" method="POST" class="modal-content">
-                                        @csrf
-                                        <div class="modal-header">
-                                            <h5 class="modal-title fw-bold">Verifikasi Motor: {{ $motor->merek }}</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Tarif Harian (Rp)</label>
-                                                <input type="number" name="tarif_harian" class="form-control" placeholder="75000" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Tarif Mingguan (Rp)</label>
-                                                <input type="number" name="tarif_mingguan" class="form-control" placeholder="450000" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Tarif Bulanan (Rp)</label>
-                                                <input type="number" name="tarif_bulanan" class="form-control" placeholder="1500000" required>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                                            <button type="submit" class="btn btn-success btn-sm fw-bold">Konfirmasi & Aktifkan Unit</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        @else
-                            <span class="text-muted small">Sudah diverifikasi</span>
-                        @endif
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Tabel Konfirmasi Sewa & Pengembalian -->
-<div class="card shadow-sm p-4 mb-4">
-    <h5 class="fw-bold mb-3">Pesanan Sewa Masuk (Perlu Konfirmasi Admin)</h5>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Penyewa</th>
-                    <th>Motor</th>
-                    <th>Durasi Sewa</th>
-                    <th>Total Biaya</th>
-                    <th>Status Pembayaran</th>
-                    <th>Status Pesanan</th>
-                    <th>Aksi Admin</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($bookings as $b)
-                <tr>
-                    <td>{{ $b->penyewa->name ?? '-' }}</td>
-                    <td><strong>{{ $b->motor->merek ?? '-' }}</strong> ({{ $b->motor->no_plat ?? '-' }})</td>
-                    <td>{{ $b->tanggal_mulai }} s/d {{ $b->tanggal_selesai }} ({{ $b->tipe_durasi }})</td>
-                    <td><strong>Rp {{ number_format($b->harga, 0, ',', '.') }}</strong></td>
-                    <td>
-                        <span class="badge {{ ($b->transaksi && $b->transaksi->status == 'berhasil') ? 'bg-success' : 'bg-danger' }}">
-                            {{ $b->transaksi ? 'Sudah Dibayar (' . $b->transaksi->metode_pembayaran . ')' : 'Belum Dibayar' }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge {{ $b->status == 'dikonfirmasi' ? 'bg-success' : ($b->status == 'selesai' ? 'bg-primary' : 'bg-warning text-dark') }}">
-                            {{ $b->status }}
-                        </span>
-                    </td>
-                    <td>
-                        @if($b->stat    us == 'menunggu_pembayaran')
-                            <form action="/admin/bookings/{{ $b->id }}/confirm-web" method="POST" style="display:inline;">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-success fw-bold">Konfirmasi Sewa</button>
-                            </form>
-                        @elseif($b->status == 'dikonfirmasi')
-                            <form action="/admin/bookings/{{ $b->id }}/return-web" method="POST" style="display:inline;">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-info text-white fw-bold">Motor Kembali</button>
-                            </form>
-                        @else
-                            <span class="text-muted small">Sewa Selesai</span>
-                        @endif
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-@endsection
-
-@push('scripts')
-<script>
-    const ctxDuration = document.getElementById('durationChart').getContext('2d');
-    new Chart(ctxDuration, {
-        type: 'bar',
-        data: {
-            labels: ['Harian', 'Mingguan', 'Bulanan'],
-            datasets: [{
-                label: 'Jumlah Penyewaan',
-                data: [{{ $chartData['harian'] }}, {{ $chartData['mingguan'] }}, {{ $chartData['bulanan'] }}],
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107']
-            }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-
-    const ctxRevenue = document.getElementById('revenuePieChart').getContext('2d');
-    new Chart(ctxRevenue, {
-        type: 'doughnut',
-        data: {
-            labels: ['Admin (20%)', 'Pemilik (80%)'],
-            datasets: [{
-                data: [{{ $totalAdmin }}, {{ $totalPemilik }}],
-                backgroundColor: ['#0d6efd', '#0dcaf0']
-            }]
-        },
-        options: { responsive: true }
-    });
-</script>
-@endpush
-```
-
-#### File: `resources/views/owner_dashboard.blade.php`
-```html
-@extends('app')
-
-@section('title', 'Dashboard Pemilik Motor')
-
-@section('content')
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm p-4 bg-primary text-white">
-            <h5>Total Pendapatan Bagi Hasil Anda</h5>
-            <h2 class="fw-bold">Rp {{ number_format($totalPendapatan, 0, ',', '.') }}</h2>
-            <small>Akun Pemilik: {{ $owner->name ?? 'Belum ada pemilik' }} ({{ $owner->email ?? '-' }})</small>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card shadow-sm p-4">
-            <h5>Total Motor Dititipkan</h5>
-            <h2 class="fw-bold text-secondary">{{ $motors->count() }} Unit</h2>
-            <small class="text-muted">Status motor diperbarui otomatis oleh sistem</small>
-        </div>
-    </div>
-</div>
-
-<div class="card shadow-sm p-4 mb-4">
-    <h5 class="fw-bold mb-3">Titipkan / Tambah Unit Motor Baru</h5>
-    
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-    <form action="/owner/motors/web" method="POST">
-        @csrf
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <label class="form-label fw-bold">Merek Motor</label>
-                <input type="text" name="merek" class="form-control" placeholder="Contoh: Yamaha NMAX 155" required>
-            </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label fw-bold">Kapasitas CC</label>
-                <select name="tipe_cc" class="form-select" required>
-                    <option value="100">100 cc</option>
-                    <option value="125">125 cc</option>
-                    <option value="150">150 cc</option>
-                </select>
-            </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label fw-bold">Nomor Plat Polisi</label>
-                <input type="text" name="no_plat" class="form-control" placeholder="Contoh: D 5678 ABC" required>
-            </div>
-        </div>
-        <button type="submit" class="btn btn-success fw-bold">Daftarkan Motor</button>
-    </form>
-</div>
-
-<div class="card shadow-sm p-4">
-    <h5 class="fw-bold mb-3">Motor Milik Anda</h5>
-    <div class="table-responsive">
-        <table class="table table-striped align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Plat Nomor</th>
-                    <th>Merek</th>
-                    <th>Kapasitas Mesin</th>
-                    <th>Status Unit</th>
-                    <th>Tarif Harian</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($motors as $motor)
-                <tr>
-                    <td><strong>{{ $motor->no_plat }}</strong></td>
-                    <td>{{ $motor->merek }}</td>
-                    <td>{{ $motor->tipe_cc }} cc</td>
-                    <td>
-                        <span class="badge {{ $motor->status == 'tersedia' ? 'bg-success' : ($motor->status == 'disewa' ? 'bg-warning text-dark' : 'bg-secondary') }}">
-                            {{ $motor->status }}
-                        </span>
-                    </td>
-                    <td>{{ $motor->tarif ? 'Rp ' . number_format($motor->tarif->tarif_harian, 0, ',', '.') : 'Menunggu verifikasi' }}</td>
-                    <td>
-                        @if($motor->status != 'disewa')
-                            <!-- Tombol Edit -->
-                            <button class="btn btn-sm btn-warning fw-bold text-dark me-1" data-bs-toggle="modal" data-bs-target="#editMotorModal{{ $motor->id }}">
-                                Edit
-                            </button>
-
-                            <!-- Tombol Hapus -->
-                            <form action="/owner/motors/{{ $motor->id }}/delete-web" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus unit motor ini?')">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-danger fw-bold">Hapus</button>
-                            </form>
-
-                            <!-- Modal Popup Edit Motor -->
-                            <div class="modal fade" id="editMotorModal{{ $motor->id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <form action="/owner/motors/{{ $motor->id }}/update-web" method="POST" class="modal-content">
-                                        @csrf
-                                        <div class="modal-header">
-                                            <h5 class="modal-title fw-bold">Edit Data Motor: {{ $motor->merek }}</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body text-start">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Merek Motor</label>
-                                                <input type="text" name="merek" class="form-control" value="{{ $motor->merek }}" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Kapasitas CC</label>
-                                                <select name="tipe_cc" class="form-select" required>
-                                                    <option value="100" {{ $motor->tipe_cc == '100' ? 'selected' : '' }}>100 cc</option>
-                                                    <option value="125" {{ $motor->tipe_cc == '125' ? 'selected' : '' }}>125 cc</option>
-                                                    <option value="150" {{ $motor->tipe_cc == '150' ? 'selected' : '' }}>150 cc</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Nomor Plat Polisi</label>
-                                                <input type="text" name="no_plat" class="form-control" value="{{ $motor->no_plat }}" required>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                                            <button type="submit" class="btn btn-primary btn-sm fw-bold">Simpan Perubahan</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        @else
-                            <span class="badge bg-secondary">Sedang Disewa</span>
-                        @endif
-                    </td>
-                </tr>
-                @empty
-                <tr><td colspan="6" class="text-center text-muted">Belum ada motor yang didaftarkan.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
-@endsection
-```
-
-#### File: `resources/views/rent_dashboard.blade.php`
-```html
-@extends('app')
-
-@section('title', 'Katalog Rental Motor')
-
-@section('content')
-@if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
-@endif
-@if(session('error'))
-    <div class="alert alert-danger">{{ session('error') }}</div>
-@endif
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul class="mb-0">
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
-<h4 class="fw-bold mb-3">Pilihan Motor Tersedia untuk Disewa</h4>
-<div class="row mb-5">
-    @forelse($availableMotors as $motor)
-    <div class="col-md-4 mb-3">
-        <div class="card shadow-sm h-100 border-0">
-            <div class="card-body">
-                <span class="badge bg-success mb-2">Tersedia</span>
-                <h5 class="card-title fw-bold">{{ $motor->merek }} ({{ $motor->tipe_cc }} cc)</h5>
-                <p class="text-muted mb-2">Plat: <strong>{{ $motor->no_plat }}</strong></p>
-                <hr>
-                <div class="small">
-                    <div>Harian: <strong>Rp {{ number_format($motor->tarif->tarif_harian ?? 0, 0, ',', '.') }}</strong></div>
-                    <div>Mingguan: <strong>Rp {{ number_format($motor->tarif->tarif_mingguan ?? 0, 0, ',', '.') }}</strong></div>
-                    <div>Bulanan: <strong>Rp {{ number_format($motor->tarif->tarif_bulanan ?? 0, 0, ',', '.') }}</strong></div>
-                </div>
-            </div>
-            <div class="card-footer bg-white border-0 pb-3">
-                <button class="btn btn-primary w-100 btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#rentModal{{ $motor->id }}">
-                    Sewa Motor Ini
-                </button>
-
-                <div class="modal fade" id="rentModal{{ $motor->id }}" tabindex="-1">
-                    <div class="modal-dialog">
-                        <form action="/rent/motors/{{ $motor->id }}/book-web" method="POST" class="modal-content">
-                            @csrf
-                            <div class="modal-header">
-                                <h5 class="modal-title fw-bold">Sewa: {{ $motor->merek }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Tanggal Mulai Sewa</label>
-                                    <input type="date" name="tanggal_mulai" class="form-control" value="{{ date('Y-m-d') }}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Pilih Durasi Sewa</label>
-                                    <select name="tipe_durasi" class="form-select" required>
-                                        <option value="harian">Harian (Rp {{ number_format($motor->tarif->tarif_harian ?? 0, 0, ',', '.') }})</option>
-                                        <option value="mingguan">Mingguan (Rp {{ number_format($motor->tarif->tarif_mingguan ?? 0, 0, ',', '.') }})</option>
-                                        <option value="bulanan">Bulanan (Rp {{ number_format($motor->tarif->tarif_bulanan ?? 0, 0, ',', '.') }})</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Metode Pembayaran</label>
-                                    <select name="metode_pembayaran" class="form-select" required>
-                                        <option value="transfer_bank">Transfer Bank</option>
-                                        <option value="qris">QRIS Instant</option>
-                                        <option value="tunai">Tunai di Tempat</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
-                                <button type="submit" class="btn btn-success btn-sm fw-bold">Konfirmasi & Sewa</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    @empty
-    <div class="col-12">
-        <div class="alert alert-info">Saat ini belum ada unit motor yang berstatus tersedia.</div>
-    </div>
-    @endforelse
-</div>
-
-<div class="card shadow-sm p-4">
-    <h5 class="fw-bold mb-3">Riwayat Penyewaan Anda</h5>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Penyewa</th>
-                    <th>Unit Motor</th>
-                    <th>Durasi Sewa</th>
-                    <th>Total Biaya</th>
-                    <th>Status Pesanan</th>
-                    <th>Status Pembayaran</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($allBookings as $b)
-                <tr>
-                    <td>{{ $b->penyewa->name ?? '-' }}</td>
-                    <td>{{ $b->motor->merek ?? '-' }} ({{ $b->motor->no_plat ?? '-' }})</td>
-                    <td>{{ $b->tanggal_mulai }} s/d {{ $b->tanggal_selesai }} ({{ $b->tipe_durasi }})</td>
-                    <td><strong>Rp {{ number_format($b->harga, 0, ',', '.') }}</strong></td>
-                    <td>
-                        <span class="badge {{ $b->status == 'dikonfirmasi' ? 'bg-success' : ($b->status == 'selesai' ? 'bg-primary' : 'bg-warning text-dark') }}">
-                            {{ $b->status }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge {{ ($b->transaksi && $b->transaksi->status == 'berhasil') ? 'bg-success' : 'bg-danger' }}">
-                            {{ $b->transaksi ? $b->transaksi->status : 'belum bayar' }}
-                        </span>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-@endsection
-```
-
-#### File: `resources/views/login.blade.php`
-```html
-@extends('app')
-
-@section('title', 'Login - Rental Motor')
-
-@section('content')
-<div class="row justify-content-center mt-5">
-    <div class="col-md-5">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-                <h4 class="fw-bold text-center mb-4">Masuk ke Akun Anda</h4>
-
-                @if(session('error'))
-                    <div class="alert alert-danger">{{ session('error') }}</div>
-                @endif
-                @if(session('success'))
-                    <div class="alert alert-success">{{ session('success') }}</div>
-                @endif
-
-                <form action="/login" method="POST">
-                    @csrf
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Email</label>
-                        <input type="email" name="email" class="form-control" placeholder="nama@example.com" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Kata Sandi</label>
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Masuk</button>
-                </form>
-
-                <div class="text-center mt-3">
-                    <small>Belum punya akun? <a href="/register">Daftar Akun Baru</a></small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
-```
-
-#### File: `resources/views/register.blade.php`
-```html
-@extends('app')
-
-@section('title', 'Daftar Akun - Rental Motor')
-
-@section('content')
-<div class="row justify-content-center mt-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-                <h4 class="fw-bold text-center mb-4">Registrasi Akun Baru</h4>
-
-                @if ($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                <form action="/register" method="POST">
-                    @csrf
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Nama Lengkap</label>
-                        <input type="text" name="name" class="form-control" placeholder="Contoh: Budi Santoso" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Email</label>
-                        <input type="email" name="email" class="form-control" placeholder="nama@example.com" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">No. Telepon / WhatsApp</label>
-                        <input type="text" name="no_tlpn" class="form-control" placeholder="08123456789" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Daftar Sebagai</label>
-                        <select name="role" class="form-select" required>
-                            <option value="penyewa">Penyewa Kendaraan</option>
-                            <option value="pemilik">Pemilik Kendaraan (Titip Motor)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Kata Sandi</label>
-                        <input type="password" name="password" class="form-control" placeholder="Minimal 6 karakter" required>
-                    </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold">Daftar Sekarang</button>
-                </form>
-
-                <div class="text-center mt-3">
-                    <small>Sudah punya akun? <a href="/login">Masuk di sini</a></small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
 ```
 
 ---
 
 ## FASE 8: KONFIGURASI SELURUH ROUTING (API & WEB)
 
-#### File: `routes/api.php`
+### 8.1 File `routes/api.php`
+Endpoint lengkap untuk pengujian REST API (Mobile / Postman):
 ```php
 <?php
 
@@ -1844,7 +1571,7 @@ Route::prefix('auth')->group(function () {
 
 // Endpoint Pemilik Kendaraan
 Route::middleware(['role:pemilik'])->prefix('owner')->group(function () {
-    Route::post('/motors', [OwnerController::class, 'storeMotor']);
+    Route::post('/motors', [OwnerController::class, 'storeMotor']); // Upload foto via API
     Route::get('/motors', [OwnerController::class, 'myMotors']);
     Route::get('/revenue', [OwnerController::class, 'revenueReport']);
 });
@@ -1866,216 +1593,167 @@ Route::middleware(['role:penyewa'])->group(function () {
 });
 ```
 
-#### File: `routes/web.php`
+### 8.2 File `routes/web.php`
+Dengan MoonShine, rute admin otomatis ditangani oleh engine MoonShine di URL `/admin`. Rute web menjadi sangat ringkas:
 ```php
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\WebController;
 
-// Rute Utama: Arahkan ke Katalog Sewa
+// Halaman Katalog Publik untuk Pengunjung
 Route::get('/', function () {
-    return redirect('/rent/dashboard');
+    return view('welcome');
 });
-
-// Halaman Dashboard Berdasarkan Peran
-Route::get('/admin/dashboard', [WebController::class, 'adminDashboard']);
-Route::get('/owner/dashboard', [WebController::class, 'ownerDashboard']);
-Route::get('/rent/dashboard', [WebController::class, 'rentDashboard']);
-
-// Aksi Interaktif Web Form
-Route::post('/owner/motors/web', [WebController::class, 'storeMotorWeb']);
-Route::post('/admin/motors/{id}/verify-web', [WebController::class, 'verifyMotorWeb']);
-Route::post('/rent/motors/{id}/book-web', [WebController::class, 'bookMotorWeb']);
-Route::post('/admin/bookings/{id}/confirm-web', [WebController::class, 'confirmBookingWeb']);
-Route::post('/admin/bookings/{id}/return-web', [WebController::class, 'returnBookingWeb']);
-
-// Autentikasi Web Berbasis Session
-Route::get('/login', [WebController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [WebController::class, 'loginWeb']);
-Route::get('/register', [WebController::class, 'showRegisterForm']);
-Route::post('/register', [WebController::class, 'registerWeb']);
-Route::post('/logout', [WebController::class, 'logoutWeb']);
-Route::post('/owner/motors/{id}/update-web', [WebController::class, 'updateMotorWeb']);
-Route::post('/owner/motors/{id}/delete-web', [WebController::class, 'deleteMotorWeb']);
 ```
 
 ---
 
 ## 9. CARA MENJALANKAN & MENGUJI DI WINDOWS
 
-### 9.1 Hubungkan Folder Storage (Symlink Foto & Dokumen)
-Agar gambar foto motor dan file dokumen kepemilikan yang di-upload dapat diakses oleh browser:
+### 9.1 Hubungkan Folder Storage (Symlink Foto Motor)
+Agar gambar foto motor yang diunggah dapat diakses oleh browser:
 ```bash
 php artisan storage:link
 ```
-> **Catatan Windows:** Jika muncul peringatan *"symlink(): Cannot create symlink"*, jalankan Command Prompt / PowerShell dengan opsi **"Run as Administrator"** atau aktifkan **Developer Mode** di Settings Windows 10/11.
+> **Catatan Windows:** Jika muncul peringatan *"symlink(): Cannot create symlink"*, buka Command Prompt atau PowerShell dengan opsi **"Run as Administrator"** atau aktifkan **Developer Mode** di Settings Windows 10/11.
 
 ---
 
 ### 9.2 Inisialisasi Database & Seeder Akun Pengujian
 
-Jalankan migrasi seluruh tabel dan trigger:
+Jalankan migrasi seluruh tabel (termasuk tabel MoonShine dan Trigger):
 ```bash
 php artisan migrate
 ```
 
-Jalankan database seeder untuk membuat 3 akun pengguna bawaan secara otomatis:
+Jalankan database seeder:
 ```bash
 php artisan db:seed
 ```
 
-Perintah di atas akan otomatis mengisikan data user berikut:
-1. **Admin:** `admin@rental.com` (password: `admin123`)
-2. **Pemilik:** `budi@example.com` (password: `password123`)
-3. **Penyewa:** `siti@example.com` (password: `password123`)
-
-*(Opsional) Jika ingin membuat user admin tambahan secara manual via Tinker:*
-```bash
-php artisan tinker
-```
-Lalu masukkan kode:
-```php
-App\Models\User::create([
-    'name'     => 'Admin Rental',
-    'email'    => 'admin2@rental.com',
-    'no_tlpn'  => '0899999999',
-    'role'     => 'admin',
-    'password' => Hash::make('admin123')
-]);
-exit
-```
+Data user uji yang dibuat:
+1. **Pemilik:** `budi@example.com` (password: `password123`)
+2. **Penyewa:** `siti@example.com` (password: `password123`)
+3. **Admin MoonShine:** `admin@rental.com` (password: `admin123`) *(Dibuat melalui `php artisan moonshine:user`)*
 
 ---
 
 ### 9.3 Jalankan Server Laravel di Windows
 
-Buka Command Prompt / PowerShell di folder proyek `rental_motor`:
+Buka Command Prompt / PowerShell di folder `rental_motor`:
 ```bash
 php artisan serve
 ```
-Server akan aktif di: **`http://127.0.0.1:8000`**
-
-*(Jika port 8000 sudah terpakai oleh aplikasi lain di Windows, gunakan port lain)*:
-```bash
-php artisan serve --port=8080
-```
-Lalu buka browser di `http://127.0.0.1:8080`.
+Server aktif di: **`http://127.0.0.1:8000`**
 
 ---
 
-### 9.4 Skenario Alur Pengujian Lengkap di Web Browser
+### 9.4 Skenario Pengujian Lengkap & Pengunggahan Foto
 
-1. **Pengujian Halaman Publik & Katalog:**
-   - Akses `http://127.0.0.1:8000/`. Halaman otomatis diarahkan ke `/rent/dashboard`.
-   - Di navbar atas terdapat pilihan **Katalog Sewa**, tombol **Masuk (Login)**, dan tombol **Daftar (Register)**.
+1. **Akses Dashboard MoonShine:**
+   * Buka browser ke **`http://127.0.0.1:8000/admin`**.
+   * Masukkan email: `admin@rental.com` dan password: `admin123`.
 
-2. **Pengujian Akun Pemilik (Titip, Edit, & Hapus Motor):**
-   - Klik **Masuk** dan login dengan akun Pemilik: `budi@example.com` / `password123`.
-   - Sistem mengarahkan ke `/owner/dashboard`.
-   - Isi form **"Titipkan / Tambah Unit Motor Baru"** (contoh: Honda Vario 125, CC 125, Plat: B 1234 ABC).
-   - Motor baru akan masuk ke tabel dengan status `menunggu_verifikasi`.
-   - Uji tombol **Edit** untuk mengubah plat atau kapasitas CC.
-   - Uji tombol **Hapus** untuk menghapus unit motor yang tidak sedang disewa.
+2. **Uji Fitur Upload Foto Motor:**
+   * Masuk ke menu **Armada Kendaraan -> Daftar Motor & Foto**.
+   * Klik tombol **Create / Tambah Baru**.
+   * Pilih Pemilik (`Budi`), ketik Merek: `Honda PCX 160`, Plat: `B 9999 XYZ`, Tipe CC: `150 CC`.
+   * Pada input **"Foto Unit Motor"**, klik tombol pilih file dan unggah foto motor (JPG/PNG).
+   * Klik **Save**.
+   * **Hasil:** Foto langsung tampil sebagai thumbnail rapi di tabel data motor. Klik gambar untuk melihat ukuran penuh.
 
-3. **Pengujian Akun Admin (Verifikasi & Penetapan Tarif):**
-   - Logout lalu login sebagai Admin: `admin@rental.com` / `admin123`.
-   - Di dashboard admin (`/admin/dashboard`), unit motor yang baru dititipkan akan muncul dengan status `menunggu_verifikasi`.
-   - Klik tombol **Verifikasi & Atur Tarif**, masukkan tarif (Harian, Mingguan, Bulanan), lalu klik **Konfirmasi & Aktifkan Unit**.
-   - Status unit motor langsung berubah menjadi `tersedia`.
+3. **Uji Penetapan Tarif & Verifikasi:**
+   * Masuk ke menu **Armada Kendaraan -> Tarif Rental**.
+   * Tambahkan tarif untuk motor tadi (Harian: 120.000, Mingguan: 700.000, Bulanan: 2.500.000).
+   * Ubah status motor dari `menunggu_verifikasi` menjadi `tersedia`.
 
-4. **Pengujian Akun Penyewa (Sewa Motor & Pembayaran):**
-   - Logout lalu login sebagai Penyewa: `siti@example.com` / `password123`.
-   - Masuk ke `/rent/dashboard`. Unit motor yang berstatus `tersedia` akan tampil di katalog beserta daftar tarifnya.
-   - Klik **Sewa Motor Ini**, pilih durasi sewa, tanggal mulai, dan metode pembayaran (Transfer Bank / QRIS / Tunai).
-   - Klik **Konfirmasi & Sewa**. Pesanan sewa berhasil dibuat dengan status `menunggu_pembayaran` dan status transaksi `berhasil`.
+4. **Cek Halaman Publik:**
+   * Buka tab baru di browser: **`http://127.0.0.1:8000/`**.
+   * Unit motor yang baru Anda upload fotonya dan diberi tarif akan otomatis muncul di grid katalog dengan tampilan kartu yang bersih dan modern.
 
-5. **Pengujian Konfirmasi Sewa & Pengembalian Unit (Admin):**
-   - Login kembali sebagai Admin.
-   - Di tabel **"Pesanan Sewa Masuk"**, klik tombol **Konfirmasi Sewa**.
-   - Database trigger dan controller otomatis memperbarui:
-     - Status sewa menjadi `dikonfirmasi`.
-     - Status unit motor otomatis berubah menjadi `disewa`.
-     - Catatan bagi hasil 80% (Pemilik) dan 20% (Admin) otomatis tercatat dan memperbarui grafik **Chart.js** di dashboard admin.
-   - Setelah masa sewa selesai, Admin mengklik tombol **Motor Kembali**:
-     - Status sewa menjadi `selesai`.
-     - Status unit motor otomatis kembali menjadi `tersedia` untuk disewa oleh pelanggan lain.
+5. **Uji Siklus Sewa & Trigger MySQL:**
+   * Buka menu **Operasional Sewa -> Transaksi Penyewaan**.
+   * Buat pesanan baru untuk `Siti`.
+   * Buka menu **Pembayaran**, catat pembayaran dengan status `berhasil`.
+   * Ubah status sewa menjadi `dikonfirmasi`.
+   * **Verifikasi Trigger:** Kembali ke menu **Daftar Motor & Foto**, status unit motor otomatis berubah menjadi `disewa` tanpa Anda ubah manual!
+   * Ubah status sewa menjadi `selesai`. Status motor otomatis kembali menjadi `tersedia`.
+
+6. **Cek Laporan Bagi Hasil:**
+   * Buka menu **Keuangan & Laporan -> Laporan Bagi Hasil**.
+   * Data pembagian hasil 80% (Pemilik) dan 20% (Admin) tercatat dengan rapi dan dapat diekspor langsung ke file Excel/CSV.
 
 ---
 
 ## 10. TABEL KREDENSIAL AKUN PENGUJIAN
 
-| Peran (Role) | Email | Password | Halaman Dashboard | Fitur Utama |
+| Peran (Role) | Email | Password | Halaman Akses | Fitur Utama |
 |---|---|---|---|---|
-| **Admin** | `admin@rental.com` | `admin123` | `/admin/dashboard` | Verifikasi unit, atur tarif sewa, konfirmasi sewa, motor kembali, dan grafik Chart.js omset & bagi hasil |
-| **Pemilik** | `budi@example.com` | `password123` | `/owner/dashboard` | Titip unit motor baru, edit unit, hapus unit, pantau status unit, dan cek akumulasi bagi hasil 80% |
-| **Penyewa** | `siti@example.com` | `password123` | `/rent/dashboard` | Katalog motor tersedia, modal formulir sewa motor, bayar sewa, dan cek riwayat sewa pribadi |
+| **Admin MoonShine** | `admin@rental.com` | `admin123` | `http://127.0.0.1:8000/admin` | Dashboard visual, CRUD Armada & **Upload Foto Motor**, verifikasi tarif, pantau booking, dan export laporan bagi hasil |
+| **Pemilik Motor** | `budi@example.com` | `password123` | Via REST API `/api/owner/*` | Titip unit motor baru, upload foto motor via API, cek laporan pendapatan bagi hasil 80% |
+| **Penyewa Motor** | `siti@example.com` | `password123` | `http://127.0.0.1:8000/` & `/api/*` | Melihat katalog motor dengan foto & tarif di web publik, sewa motor dan riwayat booking via API |
 
 ---
 
 ## 11. PANDUAN TROUBLESHOOTING MASALAH UMUM DI WINDOWS
 
-### 1. Masalah: `'php'` atau `'composer'` tidak dikenali di Terminal
-*Gejala:* `'php' is not recognized as an internal or external command`  
-*Solusi:*
-1. Tekan tombol **Windows + R**, ketik `sysdm.cpl` lalu tekan Enter.
-2. Buka tab **Advanced** -> klik **Environment Variables**.
-3. Pada bagian **System variables**, cari variabel **Path** lalu klik **Edit**.
-4. Klik **New** dan masukkan path folder PHP Anda (misal `C:\xampp\php` atau `C:\laragon\bin\php\php-8.x.x`).
-5. Klik **OK**, tutup dan buka kembali Command Prompt / PowerShell baru.
+### 1. Masalah: Error Saat Upload Foto Motor (`GD extension` / `Fileinfo`)
+* **Gejala:** `Call to undefined function imagecreatefromjpeg()` atau `Class 'finfo' not found`.
+* **Solusi:**
+  1. Buka file `php.ini` di folder PHP Anda (`C:\xampp\php\php.ini` atau Laragon).
+  2. Cari dan hilangkan titik koma di depan:
+     ```ini
+     extension=fileinfo
+     extension=gd
+     ```
+  3. Simpan dan restart Apache / PHP.
 
 ---
 
-### 2. Masalah: `could not find driver` atau Driver MySQL tidak ditemukan
-*Gejala:* `PDOException: could not find driver` saat menjalankan `php artisan migrate`  
-*Solusi:*
-1. Buka file konfigurasi `php.ini` di folder PHP Anda (misal `C:\xampp\php\php.ini` atau menu Laragon -> PHP -> php.ini).
-2. Cari baris berikut dan pastikan tanda titik koma (`;`) di depannya telah dihapus:
-   ```ini
-   extension=pdo_mysql
-   extension=mbstring
-   extension=openssl
-   extension=curl
-   extension=fileinfo
-   ```
-3. Simpan file `php.ini`, lalu restart Apache/PHP dan jalankan kembali `php artisan migrate`.
+### 2. Masalah: Foto Motor Tidak Muncul di Browser (Error 404 pada Gambar)
+* **Gejala:** Gambar rusak atau URL `http://127.0.0.1:8000/storage/motors/...` mengembalikan 404 Not Found.
+* **Solusi di Windows:**
+  1. Hapus folder shortcut `public/storage` jika sudah terlanjur dibuat secara tidak sempurna.
+  2. Buka Command Prompt / PowerShell dengan klik kanan -> **"Run as Administrator"**.
+  3. Jalankan kembali:
+     ```bash
+     php artisan storage:link
+     ```
 
 ---
 
-### 3. Masalah: `SQLSTATE[HY000] [2002] Connection refused`
-*Gejala:* Laravel gagal terhubung ke database.  
-*Solusi:*
-1. Pastikan modul **MySQL** di XAMPP Control Panel atau Laragon sudah berstatus **Running** (indikator warna hijau).
-2. Periksa kembali file `.env`:
-   - Jika menggunakan XAMPP/Laragon default: `DB_USERNAME=root` dan `DB_PASSWORD=` (dikosongkan).
-   - Pastikan database `rental_motor` sudah dibuat melalui phpMyAdmin (`http://localhost/phpmyadmin`) atau HeidiSQL.
+### 3. Masalah: Aset Tampilan MoonShine (CSS/JS) Tidak Termuat
+* **Gejala:** Halaman `/admin` tampil berantakan tanpa gaya CSS.
+* **Solusi:**
+  Jalankan perintah publish aset MoonShine:
+  ```bash
+  php artisan moonshine:publish
+  php artisan optimize:clear
+  ```
 
 ---
 
-### 4. Masalah: Symlink Storage Gagal di Windows
-*Gejala:* `symlink(): Cannot create symlink, errno=1314` saat menjalankan `php artisan storage:link`  
-*Solusi:*
-- Buka PowerShell / CMD dengan cara: Klik Kanan -> **"Run as administrator"**, lalu jalankan `php artisan storage:link`.
-- Atau aktifkan **Developer Mode** di Windows: Buka **Settings** -> **Update & Security** -> **For developers** -> aktifkan **Developer Mode**.
+### 4. Masalah: Driver MySQL Tidak Ditemukan (`could not find driver`)
+* **Gejala:** `PDOException: could not find driver` saat menjalankan `php artisan migrate`.
+* **Solusi:**
+  Pastikan `extension=pdo_mysql` di `php.ini` sudah aktif, lalu restart server web Anda.
 
 ---
 
-### 5. Masalah: Error JWT Token / Secret Key Missing
-*Gejala:* `Tymon\JWTAuth\Exceptions\JWTException: Secret key is not set`  
-*Solusi:*
-Jalankan perintah generate secret key JWT:
-```bash
-php artisan jwt:secret
-```
-Perintah ini akan otomatis mengisi variabel `JWT_SECRET` di dalam file `.env`.
+### 5. Masalah: Hak Akses Pembuatan Trigger MySQL di Windows
+* **Gejala:** `This function has none of DETERMINISTIC...` atau `Access denied for user to CREATE TRIGGER`.
+* **Solusi:**
+  Masuk ke phpMyAdmin / HeidiSQL, buka tab SQL dan jalankan query:
+  ```sql
+  SET GLOBAL log_bin_trust_function_creators = 1;
+  ```
+  Lalu jalankan ulang `php artisan migrate`.
 
 ---
 
-### 6. Masalah: Hak Akses Pembuatan Trigger MySQL di Windows
-*Gejala:* `This function has none of DETERMINISTIC...` atau `Access denied for user to CREATE TRIGGER`  
-*Solusi:*
-Masuk ke SQL CLI atau phpMyAdmin dan jalankan query berikut sebagai root:
-```sql
-SET GLOBAL log_bin_trust_function_creators = 1;
-```
-Lalu jalankan ulang `php artisan migrate`.
+### 6. Masalah: Secret Key JWT Belum Dibuat
+* **Gejala:** `Tymon\JWTAuth\Exceptions\JWTException: Secret key is not set`.
+* **Solusi:**
+  ```bash
+  php artisan jwt:secret
+  ```
